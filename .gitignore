@@ -1,0 +1,54 @@
+# macOS
+.DS_Store
+
+# Xcode
+DerivedData/
+build/
+*.xcuserstate
+xcuserdata/
+*.xccheckout
+*.moved-aside
+*.xcscmblueprint
+*.xcarchive
+
+# Swift Package Manager
+.build/
+Packages/
+.swiftpm/
+
+# CocoaPods
+Pods/
+
+# Carthage
+Carthage/Build/
+
+# Fastlane generated files
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/screenshots/**/*.png
+fastlane/test_output/
+
+# Local config
+.env
+*.env
+*.local
+Config.local.swift
+LocalConfig.swift
+
+# Archives / packages
+*.ipa
+*.dSYM.zip
+*.dSYM
+
+# Logs and temporary files
+*.log
+*.tmp
+*.swp
+*.swo
+
+# Assistant and local tool state
+.codex/
+.claude/
+
+# JetBrains IDE
+.idea/
