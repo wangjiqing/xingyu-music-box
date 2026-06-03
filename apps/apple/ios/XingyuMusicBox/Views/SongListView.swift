@@ -42,7 +42,16 @@ struct SongListView: View {
     @EnvironmentObject private var viewModel: PlayerViewModel
     @State private var searchText = ""
     @State private var browseMode: LocalMusicBrowseMode = .songs
+    var layoutContext: AppLayoutContext = .phone
     var onMiniPlayerTap: () -> Void = {}
+
+    private var scrollBottomPadding: CGFloat {
+        layoutContext == .phone ? 178 : 32
+    }
+
+    private var miniPlayerBottomPadding: CGFloat {
+        layoutContext == .phone ? 82 : 16
+    }
 
     private var filteredSongs: [Song] {
         let keyword = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -129,7 +138,7 @@ struct SongListView: View {
                                 }
                                 .padding(.horizontal, 14)
                                 .padding(.top, 10)
-                                .padding(.bottom, 178)
+                                .padding(.bottom, scrollBottomPadding)
                             }
                             .refreshable {
                                 viewModel.refreshMediaLibrarySongs()
@@ -141,7 +150,7 @@ struct SongListView: View {
 
                     MiniPlayerView(onTap: onMiniPlayerTap)
                         .padding(.horizontal)
-                        .padding(.bottom, 82)
+                        .padding(.bottom, miniPlayerBottomPadding)
                 }
             }
             .toolbar(.hidden, for: .navigationBar)
@@ -286,6 +295,7 @@ struct SongListView: View {
                                 title: group.name,
                                 subtitle: "\(group.songs.count) 首歌曲",
                                 songs: group.songs,
+                                layoutContext: layoutContext,
                                 onMiniPlayerTap: onMiniPlayerTap
                             )
                         } label: {
@@ -310,6 +320,7 @@ struct SongListView: View {
                                 title: group.title,
                                 subtitle: "\(group.artistName) · \(group.songs.count) 首歌曲",
                                 songs: group.songs,
+                                layoutContext: layoutContext,
                                 onMiniPlayerTap: onMiniPlayerTap
                             )
                         } label: {
@@ -365,7 +376,7 @@ struct SongListView: View {
     private var mediaLibraryStatusSection: some View {
         if viewModel.canRequestMediaLibraryAuthorization {
             mediaLibraryActionCard(
-                title: "读取 iPhone 系统媒体库",
+                title: "读取系统媒体库",
                 message: viewModel.mediaLibraryAuthorizationTitle,
                 systemImage: "music.note.list",
                 tint: XYStyle.accent,
@@ -383,7 +394,7 @@ struct SongListView: View {
         } else if viewModel.hasAuthorizedEmptyMediaLibrary {
             mediaLibraryMessageCard(
                 title: "还没有同步音乐",
-                message: "请先通过 Finder、iTunes 或爱思助手把音乐同步到 iPhone 系统媒体库。",
+                message: "请先通过 Finder、iTunes 或爱思助手把音乐同步到本机系统媒体库。",
                 systemImage: "tray",
                 tint: XYStyle.muted
             )
@@ -554,7 +565,16 @@ private struct LocalMusicGroupDetailView: View {
     let title: String
     let subtitle: String
     let songs: [Song]
+    var layoutContext: AppLayoutContext
     var onMiniPlayerTap: () -> Void
+
+    private var scrollBottomPadding: CGFloat {
+        layoutContext == .phone ? 178 : 32
+    }
+
+    private var miniPlayerBottomPadding: CGFloat {
+        layoutContext == .phone ? 82 : 16
+    }
 
     var body: some View {
         ZStack {
@@ -595,12 +615,12 @@ private struct LocalMusicGroupDetailView: View {
                     }
                     .padding(.horizontal, 14)
                     .padding(.top, 10)
-                    .padding(.bottom, 178)
+                    .padding(.bottom, scrollBottomPadding)
                 }
 
                 MiniPlayerView(onTap: onMiniPlayerTap)
                     .padding(.horizontal)
-                    .padding(.bottom, 82)
+                    .padding(.bottom, miniPlayerBottomPadding)
             }
         }
         .toolbar(.hidden, for: .navigationBar)

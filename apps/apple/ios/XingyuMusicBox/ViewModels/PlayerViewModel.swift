@@ -287,7 +287,7 @@ final class PlayerViewModel: ObservableObject {
     var mediaLibraryAuthorizationTitle: String {
         switch mediaLibraryAuthorizationStatus {
         case .notDetermined:
-            return "需要授权读取 iPhone 系统媒体库"
+            return "需要授权读取本机系统媒体库"
         case .denied:
             return "媒体库访问已关闭，请在系统设置中开启"
         case .restricted:

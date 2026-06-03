@@ -314,6 +314,11 @@ enum AppTab: Hashable, CaseIterable, Identifiable {
     }
 }
 
+enum AppLayoutContext {
+    case phone
+    case ipad
+}
+
 enum XYStyle {
     static var backgroundTop: Color { AppTheme.current.backgroundTop }
     static var backgroundBottom: Color { AppTheme.current.backgroundBottom }

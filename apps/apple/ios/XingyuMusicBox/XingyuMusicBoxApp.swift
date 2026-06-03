@@ -7,7 +7,7 @@ struct XingyuMusicBoxApp: App {
 
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            AdaptiveRootView()
                 .environmentObject(viewModel)
                 .environmentObject(themeManager)
                 .preferredColorScheme(themeManager.currentTheme.colorScheme)

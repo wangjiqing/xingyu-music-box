@@ -6,6 +6,7 @@ struct SettingsView: View {
     @EnvironmentObject private var themeManager: ThemeManager
     @State private var pendingConfirmation: SettingsConfirmation?
     @State private var isThemeSheetPresented = false
+    var maxContentWidth: CGFloat? = nil
 
     var body: some View {
         ZStack {
@@ -61,7 +62,7 @@ struct SettingsView: View {
                             SettingsDivider()
                             SettingsRow(title: "最近播放", subtitle: "保存在 UserDefaults", value: "\(viewModel.recentPlayRecords.count)")
                             SettingsDivider()
-                            SettingsRow(title: "数据源", subtitle: "系统媒体库优先", value: "iPhone")
+                            SettingsRow(title: "数据源", subtitle: "系统媒体库优先", value: "本机")
                         }
                     }
 
@@ -158,6 +159,8 @@ struct SettingsView: View {
                 }
                 .padding(.horizontal, 18)
                 .padding(.bottom, 32)
+                .frame(maxWidth: maxContentWidth ?? .infinity, alignment: .leading)
+                .frame(maxWidth: .infinity, alignment: maxContentWidth == nil ? .leading : .center)
             }
         }
         .confirmationDialog(
