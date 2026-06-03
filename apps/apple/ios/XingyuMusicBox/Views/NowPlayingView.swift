@@ -18,7 +18,7 @@ struct NowPlayingView: View {
                     nowPlayingContent(song)
                         .frame(maxHeight: .infinity)
                 } else {
-                    ContentUnavailableView("暂无歌曲", systemImage: "music.note", description: Text("请授权并刷新 iPhone 系统媒体库。"))
+                    ContentUnavailableView("暂无歌曲", systemImage: "music.note", description: Text("请授权并刷新本机系统媒体库。"))
                         .foregroundStyle(XYStyle.text)
                         .padding(22)
                         .glassCard()
@@ -292,6 +292,11 @@ struct RecentHistoryRowView: View {
 }
 
 struct CoverPlayerPageView: View {
+    enum QuickActionsPlacement {
+        case side
+        case belowCover
+    }
+
     let song: Song
     let isFavorite: Bool
     let isPlaying: Bool
@@ -299,6 +304,8 @@ struct CoverPlayerPageView: View {
     let currentTime: Double
     let duration: Double
     let isAutoFetchingLyrics: Bool
+    var showsLyricsPreview = true
+    var quickActionsPlacement: QuickActionsPlacement = .side
     let onFavorite: () -> Void
     let onList: () -> Void
     let onTheme: () -> Void
@@ -335,29 +342,42 @@ struct CoverPlayerPageView: View {
         let spacing: CGFloat = compact ? 7 : 11
 
         return VStack(spacing: spacing) {
-            HStack(alignment: .center, spacing: 10) {
+            VStack(spacing: compact ? 8 : 12) {
                 CoverView(song: song, size: coverSize, allowsMusicVaultLookup: true)
 
-                SideQuickActionsView(
-                    isFavorite: isFavorite,
-                    onFavorite: onFavorite,
-                    onList: onList,
-                    onTheme: onTheme
-                )
+                if quickActionsPlacement == .belowCover {
+                    PlayerQuickActionsView(
+                        placement: .horizontal,
+                        isFavorite: isFavorite,
+                        onFavorite: onFavorite,
+                        onList: onList,
+                        onTheme: onTheme
+                    )
+                }
             }
             .frame(maxWidth: .infinity, alignment: .center)
+            .overlay(alignment: .trailing) {
+                if quickActionsPlacement == .side {
+                    PlayerQuickActionsView(
+                        placement: .vertical,
+                        isFavorite: isFavorite,
+                        onFavorite: onFavorite,
+                        onList: onList,
+                        onTheme: onTheme
+                    )
+                    .padding(.trailing, 4)
+                }
+            }
 
-            VStack(spacing: 6) {
+            VStack(spacing: 5) {
                 Text(displayMetadata.title)
                     .font(.title3.weight(.semibold))
                     .foregroundStyle(XYStyle.text)
                     .multilineTextAlignment(.center)
                     .lineLimit(2)
-                Text(displayMetadata.artist)
-                    .font(.callout)
-                    .foregroundStyle(Color.white.opacity(0.82))
-                Text(displayMetadata.albumLine)
-                    .font(.footnote)
+
+                Text([displayMetadata.artist.nilIfBlank, displayMetadata.albumLine.nilIfBlank].compactMap { $0 }.joined(separator: " · "))
+                    .font(.callout.weight(.medium))
                     .foregroundStyle(XYStyle.muted)
                     .lineLimit(1)
 
@@ -369,13 +389,15 @@ struct CoverPlayerPageView: View {
                 }
             }
 
-            LyricsPreviewView(
-                cachedLyrics: cachedLyrics,
-                currentTime: currentTime,
-                isLoading: cachedLyrics == nil && isAutoFetchingLyrics
-            )
-                .frame(height: compact ? 48 : nil)
-                .clipped()
+            if showsLyricsPreview {
+                LyricsPreviewView(
+                    cachedLyrics: cachedLyrics,
+                    currentTime: currentTime,
+                    isLoading: cachedLyrics == nil && isAutoFetchingLyrics
+                )
+                    .frame(height: compact ? 48 : nil)
+                    .clipped()
+            }
 
             if !compact {
                 AudioVisualizerView(isPlaying: isPlaying)
@@ -464,11 +486,18 @@ private struct PlayerDisplayMetadata {
 }
 
 struct LyricsPageView: View {
+    enum DisplayStyle {
+        case standard
+        case spacious
+    }
+
     let song: Song
     let currentTime: TimeInterval
     let playbackDuration: TimeInterval
     let isPlaying: Bool
     let isAutoFetchingLyrics: Bool
+    var showsMiniControlBar = true
+    var displayStyle: DisplayStyle = .standard
     let onSeek: (Double) -> Void
     let onPrevious: () -> Void
     let onTogglePlayback: () -> Void
@@ -558,6 +587,7 @@ struct LyricsPageView: View {
                                 LrcLyricsTimelineView(
                                     lines: lrcLines,
                                     currentIndex: currentLyricLineIndex,
+                                    displayStyle: displayStyle,
                                     onLineTap: { line in
                                         resumeAutoScrollImmediately()
                                         onSeek(line.time)
@@ -570,7 +600,8 @@ struct LyricsPageView: View {
                                 LyricsBadgeView(text: lyricsState.badge)
                                 PlainLyricsTextView(
                                     text: lyricsText,
-                                    isInstrumental: lyricsState.isInstrumental
+                                    isInstrumental: lyricsState.isInstrumental,
+                                    displayStyle: displayStyle
                                 )
                             } else {
                                 NoLyricsView(song: song, isAutoFetchingLyrics: isAutoFetchingLyrics) {
@@ -581,12 +612,28 @@ struct LyricsPageView: View {
                             }
 
                             Color.clear
-                                .frame(height: 96)
+                                .frame(height: displayStyle == .spacious ? 140 : 96)
                         }
                         .padding(.horizontal, 16)
-                        .padding(.vertical, 18)
+                        .padding(.vertical, displayStyle == .spacious ? 30 : 18)
                     }
                     .scrollIndicators(.hidden)
+                    .mask {
+                        if displayStyle == .spacious {
+                            LinearGradient(
+                                stops: [
+                                    .init(color: .clear, location: 0.0),
+                                    .init(color: .black, location: 0.12),
+                                    .init(color: .black, location: 0.84),
+                                    .init(color: .clear, location: 1.0)
+                                ],
+                                startPoint: .top,
+                                endPoint: .bottom
+                            )
+                        } else {
+                            Rectangle()
+                        }
+                    }
                     .simultaneousGesture(
                         DragGesture(minimumDistance: 6)
                             .onChanged { _ in
@@ -614,16 +661,18 @@ struct LyricsPageView: View {
                         }
                     }
 
-                    LyricsMiniControlBar(
-                        song: song,
-                        isPlaying: isPlaying,
-                        currentTime: currentTime,
-                        duration: playbackDuration,
-                        onPrevious: onPrevious,
-                        onTogglePlayback: onTogglePlayback,
-                        onNext: onNext
-                    )
-                    .padding(.horizontal, 2)
+                    if showsMiniControlBar {
+                        LyricsMiniControlBar(
+                            song: song,
+                            isPlaying: isPlaying,
+                            currentTime: currentTime,
+                            duration: playbackDuration,
+                            onPrevious: onPrevious,
+                            onTogglePlayback: onTogglePlayback,
+                            onNext: onNext
+                        )
+                        .padding(.horizontal, 2)
+                    }
                 }
             }
         }
@@ -774,12 +823,25 @@ private struct LyricsBadgeView: View {
 private struct PlainLyricsTextView: View {
     let text: String
     let isInstrumental: Bool
+    let displayStyle: LyricsPageView.DisplayStyle
+
+    private var textFont: Font {
+        if isInstrumental {
+            return displayStyle == .spacious ? .title3.weight(.semibold) : .headline
+        }
+
+        return displayStyle == .spacious ? .title3 : .body
+    }
+
+    private var textOpacity: Double {
+        displayStyle == .spacious ? 0.64 : 0.78
+    }
 
     var body: some View {
         Text(text)
-            .font(isInstrumental ? .headline : .body)
-            .foregroundStyle(Color.white.opacity(0.78))
-            .lineSpacing(8)
+            .font(textFont)
+            .foregroundStyle(Color.white.opacity(textOpacity))
+            .lineSpacing(displayStyle == .spacious ? 18 : 8)
             .multilineTextAlignment(.leading)
             .frame(maxWidth: .infinity, alignment: .leading)
     }
@@ -788,14 +850,24 @@ private struct PlainLyricsTextView: View {
 private struct LrcLyricsTimelineView: View {
     let lines: [LyricLine]
     let currentIndex: Int?
+    let displayStyle: LyricsPageView.DisplayStyle
     let onLineTap: (LyricLine) -> Void
 
+    private var lineSpacing: CGFloat {
+        displayStyle == .spacious ? 28 : 14
+    }
+
+    private var verticalPadding: CGFloat {
+        displayStyle == .spacious ? 16 : 6
+    }
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
+        VStack(alignment: .leading, spacing: lineSpacing) {
             ForEach(lines) { line in
                 LrcLyricLineView(
                     line: line,
                     isCurrent: line.index == currentIndex,
+                    displayStyle: displayStyle,
                     onTap: {
                         onLineTap(line)
                     }
@@ -803,23 +875,53 @@ private struct LrcLyricsTimelineView: View {
                 .id(lyricLineScrollID(line.index))
             }
         }
-        .padding(.vertical, 6)
+        .padding(.vertical, verticalPadding)
     }
 }
 
 private struct LrcLyricLineView: View {
     let line: LyricLine
     let isCurrent: Bool
+    let displayStyle: LyricsPageView.DisplayStyle
     let onTap: () -> Void
+
+    private var textFont: Font {
+        switch (displayStyle, isCurrent) {
+        case (.spacious, true):
+            return .title2.weight(.bold)
+        case (.spacious, false):
+            return .title3
+        case (.standard, true):
+            return .title3.weight(.bold)
+        case (.standard, false):
+            return .body
+        }
+    }
+
+    private var textColor: Color {
+        if isCurrent {
+            return XYStyle.accent
+        }
+
+        return Color.white.opacity(displayStyle == .spacious ? 0.38 : 0.56)
+    }
+
+    private var verticalPadding: CGFloat {
+        if displayStyle == .spacious {
+            return isCurrent ? 7 : 4
+        }
+
+        return isCurrent ? 4 : 2
+    }
 
     var body: some View {
         Text(line.displayText)
-            .font(isCurrent ? .title3.weight(.bold) : .body)
-            .foregroundStyle(isCurrent ? XYStyle.accent : Color.white.opacity(0.56))
-            .lineSpacing(5)
+            .font(textFont)
+            .foregroundStyle(textColor)
+            .lineSpacing(displayStyle == .spacious ? 10 : 5)
             .multilineTextAlignment(.leading)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.vertical, isCurrent ? 4 : 2)
+            .padding(.vertical, verticalPadding)
             .contentShape(Rectangle())
             .onTapGesture(perform: onTap)
             .animation(.easeInOut(duration: 0.18), value: isCurrent)
@@ -1178,7 +1280,124 @@ private struct LyricsSearchSheet: View {
     }
 }
 
+struct PlayerQuickActionsView: View {
+    enum Placement {
+        case vertical
+        case horizontal
+    }
+
+    let placement: Placement
+    let isFavorite: Bool
+    let onFavorite: () -> Void
+    let onList: () -> Void
+    let onTheme: () -> Void
+
+    var body: some View {
+        Group {
+            if placement == .vertical {
+                VStack(spacing: 0) {
+                    buttons
+                }
+            } else {
+                HStack(spacing: 8) {
+                    buttons
+                }
+            }
+        }
+        .padding(.vertical, placement == .vertical ? 6 : 5)
+        .padding(.horizontal, placement == .vertical ? 5 : 8)
+        .fixedSize()
+        .background(Color.black.opacity(0.14), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+    }
+
+    @ViewBuilder
+    private var buttons: some View {
+        quickButton(
+            title: "收藏",
+            systemImage: isFavorite ? "heart.fill" : "heart",
+            color: isFavorite ? XYStyle.danger : Color.white.opacity(0.72),
+            action: onFavorite
+        )
+
+        if placement == .vertical {
+            quickDivider
+        }
+
+        quickButton(
+            title: "列表",
+            systemImage: "list.bullet",
+            color: XYStyle.accent,
+            action: onList
+        )
+
+        if placement == .vertical {
+            quickDivider
+        }
+
+        quickButton(
+            title: "音效",
+            systemImage: "waveform",
+            color: Color.white.opacity(0.72),
+            action: {}
+        )
+
+        if placement == .vertical {
+            quickDivider
+        }
+
+        quickButton(
+            title: "皮肤",
+            systemImage: "paintpalette",
+            color: XYStyle.accent,
+            action: onTheme
+        )
+    }
+
+    private var quickDivider: some View {
+        Rectangle()
+            .fill(Color.white.opacity(0.07))
+            .frame(width: 28, height: 1)
+    }
+
+    private func quickButton(
+        title: String,
+        systemImage: String,
+        color: Color,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            VStack(spacing: 4) {
+                Image(systemName: systemImage)
+                    .font(.system(size: 16, weight: .semibold))
+                Text(title)
+                    .font(.caption2.weight(.semibold))
+            }
+            .foregroundStyle(color)
+            .frame(width: placement == .vertical ? 48 : 54, height: 45)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+}
+
 struct SideQuickActionsView: View {
+    let isFavorite: Bool
+    let onFavorite: () -> Void
+    let onList: () -> Void
+    let onTheme: () -> Void
+
+    var body: some View {
+        PlayerQuickActionsView(
+            placement: .vertical,
+            isFavorite: isFavorite,
+            onFavorite: onFavorite,
+            onList: onList,
+            onTheme: onTheme
+        )
+    }
+}
+
+struct LegacySideQuickActionsView: View {
     let isFavorite: Bool
     let onFavorite: () -> Void
     let onList: () -> Void

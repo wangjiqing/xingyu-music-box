@@ -23,6 +23,8 @@
 		01000000000000000000000E /* PlayerControlsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 02000000000000000000000E /* PlayerControlsView.swift */; };
 		01000000000000000000000F /* ProgressSliderView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 02000000000000000000000F /* ProgressSliderView.swift */; };
 		010000000000000000000010 /* GlassCardModifier.swift in Sources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000010 /* GlassCardModifier.swift */; };
+		010000000000000000000011 /* AdaptiveRootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000011 /* AdaptiveRootView.swift */; };
+		010000000000000000000028 /* IPadRootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000028 /* IPadRootView.swift */; };
 		010000000000000000000012 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000012 /* Assets.xcassets */; };
 		010000000000000000000014 /* PlaybackStateStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000015 /* PlaybackStateStore.swift */; };
 		010000000000000000000016 /* RecentPlayStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000017 /* RecentPlayStore.swift */; };
@@ -57,6 +59,7 @@
 		02000000000000000000000E /* PlayerControlsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayerControlsView.swift; sourceTree = "<group>"; };
 		02000000000000000000000F /* ProgressSliderView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProgressSliderView.swift; sourceTree = "<group>"; };
 		020000000000000000000010 /* GlassCardModifier.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassCardModifier.swift; sourceTree = "<group>"; };
+		020000000000000000000011 /* AdaptiveRootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AdaptiveRootView.swift; sourceTree = "<group>"; };
 		020000000000000000000012 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		020000000000000000000013 /* XingyuMusicBox.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = XingyuMusicBox.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		020000000000000000000015 /* PlaybackStateStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaybackStateStore.swift; sourceTree = "<group>"; };
@@ -73,6 +76,7 @@
 		020000000000000000000025 /* MusicVaultLyricsService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MusicVaultLyricsService.swift; sourceTree = "<group>"; };
 		020000000000000000000026 /* MusicVaultArtworkService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MusicVaultArtworkService.swift; sourceTree = "<group>"; };
 		020000000000000000000027 /* MusicVaultMetadataService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MusicVaultMetadataService.swift; sourceTree = "<group>"; };
+		020000000000000000000028 /* IPadRootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IPadRootView.swift; sourceTree = "<group>"; };
 		280429532FA78D6800B16AD9 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -153,6 +157,8 @@
 		040000000000000000000006 /* Views */ = {
 			isa = PBXGroup;
 			children = (
+				020000000000000000000011 /* AdaptiveRootView.swift */,
+				020000000000000000000028 /* IPadRootView.swift */,
 				020000000000000000000007 /* ContentView.swift */,
 				020000000000000000000008 /* NowPlayingView.swift */,
 				020000000000000000000009 /* SongListView.swift */,
@@ -275,6 +281,7 @@
 				01000000000000000000000E /* PlayerControlsView.swift in Sources */,
 				01000000000000000000000F /* ProgressSliderView.swift in Sources */,
 				010000000000000000000010 /* GlassCardModifier.swift in Sources */,
+				010000000000000000000011 /* AdaptiveRootView.swift in Sources */,
 				010000000000000000000014 /* PlaybackStateStore.swift in Sources */,
 				010000000000000000000016 /* RecentPlayStore.swift in Sources */,
 				010000000000000000000018 /* AudioSessionManager.swift in Sources */,
@@ -289,6 +296,7 @@
 				010000000000000000000025 /* MusicVaultLyricsService.swift in Sources */,
 				010000000000000000000026 /* MusicVaultArtworkService.swift in Sources */,
 				010000000000000000000027 /* MusicVaultMetadataService.swift in Sources */,
+				010000000000000000000028 /* IPadRootView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

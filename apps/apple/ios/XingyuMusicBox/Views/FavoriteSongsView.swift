@@ -2,7 +2,16 @@ import SwiftUI
 
 struct FavoriteSongsView: View {
     @EnvironmentObject private var viewModel: PlayerViewModel
+    var layoutContext: AppLayoutContext = .phone
     var onMiniPlayerTap: () -> Void = {}
+
+    private var scrollBottomPadding: CGFloat {
+        layoutContext == .phone ? 178 : 32
+    }
+
+    private var miniPlayerBottomPadding: CGFloat {
+        layoutContext == .phone ? 82 : 16
+    }
 
     private var favoriteSongs: [Song] {
         viewModel.songs.filter { viewModel.favorites.contains($0.id) }
@@ -64,13 +73,13 @@ struct FavoriteSongsView: View {
                         }
                         .padding(.horizontal, 14)
                         .padding(.top, 14)
-                        .padding(.bottom, 178)
+                        .padding(.bottom, scrollBottomPadding)
                     }
                 }
 
                 MiniPlayerView(onTap: onMiniPlayerTap)
                     .padding(.horizontal)
-                    .padding(.bottom, 82)
+                    .padding(.bottom, miniPlayerBottomPadding)
             }
         }
     }
