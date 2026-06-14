@@ -37,6 +37,7 @@
 		010000000000000000000022 /* MusicVaultApiClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000022 /* MusicVaultApiClient.swift */; };
 		010000000000000000000023 /* MusicVaultCacheStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000023 /* MusicVaultCacheStore.swift */; };
 		010000000000000000000024 /* MusicVaultConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000024 /* MusicVaultConfig.swift */; };
+		010000000000000000000029 /* OpenApiHmacSigner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000029 /* OpenApiHmacSigner.swift */; };
 		010000000000000000000025 /* MusicVaultLyricsService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000025 /* MusicVaultLyricsService.swift */; };
 		010000000000000000000026 /* MusicVaultArtworkService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000026 /* MusicVaultArtworkService.swift */; };
 		010000000000000000000027 /* MusicVaultMetadataService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000027 /* MusicVaultMetadataService.swift */; };
@@ -73,6 +74,9 @@
 		020000000000000000000022 /* MusicVaultApiClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MusicVaultApiClient.swift; sourceTree = "<group>"; };
 		020000000000000000000023 /* MusicVaultCacheStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MusicVaultCacheStore.swift; sourceTree = "<group>"; };
 		020000000000000000000024 /* MusicVaultConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MusicVaultConfig.swift; sourceTree = "<group>"; };
+		020000000000000000000029 /* OpenApiHmacSigner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenApiHmacSigner.swift; sourceTree = "<group>"; };
+		02000000000000000000002A /* OpenApiConfig.example.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = OpenApiConfig.example.plist; sourceTree = "<group>"; };
+		02000000000000000000002B /* OpenApiConfig.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = OpenApiConfig.plist; sourceTree = "<group>"; };
 		020000000000000000000025 /* MusicVaultLyricsService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MusicVaultLyricsService.swift; sourceTree = "<group>"; };
 		020000000000000000000026 /* MusicVaultArtworkService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MusicVaultArtworkService.swift; sourceTree = "<group>"; };
 		020000000000000000000027 /* MusicVaultMetadataService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MusicVaultMetadataService.swift; sourceTree = "<group>"; };
@@ -137,6 +141,7 @@
 				02000000000000000000001F /* LyricsCacheStore.swift */,
 				020000000000000000000020 /* LRCParser.swift */,
 				020000000000000000000024 /* MusicVaultConfig.swift */,
+				020000000000000000000029 /* OpenApiHmacSigner.swift */,
 				020000000000000000000022 /* MusicVaultApiClient.swift */,
 				020000000000000000000023 /* MusicVaultCacheStore.swift */,
 				020000000000000000000025 /* MusicVaultLyricsService.swift */,
@@ -184,6 +189,8 @@
 		040000000000000000000008 /* Resources */ = {
 			isa = PBXGroup;
 			children = (
+				02000000000000000000002A /* OpenApiConfig.example.plist */,
+				02000000000000000000002B /* OpenApiConfig.plist */,
 			);
 			path = Resources;
 			sourceTree = "<group>";
@@ -206,6 +213,7 @@
 				060000000000000000000001 /* Sources */,
 				030000000000000000000001 /* Frameworks */,
 				070000000000000000000001 /* Resources */,
+				070000000000000000000002 /* Copy Local OpenAPI Config */,
 			);
 			buildRules = (
 			);
@@ -260,6 +268,29 @@
 		};
 /* End PBXResourcesBuildPhase section */
 
+/* Begin PBXShellScriptBuildPhase section */
+		070000000000000000000002 /* Copy Local OpenAPI Config */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+				"$(SRCROOT)/XingyuMusicBox/Resources/OpenApiConfig.plist",
+			);
+			name = "Copy Local OpenAPI Config";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+				"$(TARGET_BUILD_DIR)/$(UNLOCALIZED_RESOURCES_FOLDER_PATH)/OpenApiConfig.plist",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "CONFIG_PATH=\"${SRCROOT}/XingyuMusicBox/Resources/OpenApiConfig.plist\"\nDEST_PATH=\"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/OpenApiConfig.plist\"\nif [ -f \"$CONFIG_PATH\" ]; then\n  cp \"$CONFIG_PATH\" \"$DEST_PATH\"\nfi\n";
+		};
+/* End PBXShellScriptBuildPhase section */
+
 /* Begin PBXSourcesBuildPhase section */
 		060000000000000000000001 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
@@ -293,6 +324,7 @@
 				010000000000000000000022 /* MusicVaultApiClient.swift in Sources */,
 				010000000000000000000023 /* MusicVaultCacheStore.swift in Sources */,
 				010000000000000000000024 /* MusicVaultConfig.swift in Sources */,
+				010000000000000000000029 /* OpenApiHmacSigner.swift in Sources */,
 				010000000000000000000025 /* MusicVaultLyricsService.swift in Sources */,
 				010000000000000000000026 /* MusicVaultArtworkService.swift in Sources */,
 				010000000000000000000027 /* MusicVaultMetadataService.swift in Sources */,
