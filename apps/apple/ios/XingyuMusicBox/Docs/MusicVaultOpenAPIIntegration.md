@@ -2,7 +2,8 @@
 
 ## 当前默认配置
 
-- 局域网服务地址：`http://192.168.31.101:8080`
+- 默认公网 HTTPS 服务地址：`https://www.oceanofstars.com.cn:18443`
+- 局域网调试地址示例：`http://192.168.x.x:18081`
 - OpenAPI 前缀：`/api/open/v1`
 - 集中配置入口：`MusicVaultConfig`
 - Swift 客户端入口：`MusicVaultApiClient.shared`
@@ -15,16 +16,32 @@
 
 ```swift
 let credential = OpenApiCredential(accessKey: "xmv_ak_dev", secretKey: "local-secret")
-let config = MusicVaultConfig(baseURLString: "http://192.168.31.101:8080", credential: credential)
+let config = MusicVaultConfig(baseURLString: "https://www.oceanofstars.com.cn:18443", credential: credential)
 let client = MusicVaultApiClient(config: config)
 ```
+
+## 服务地址切换
+
+默认构建使用公网 HTTPS 入口：
+
+```text
+https://www.oceanofstars.com.cn:18443
+```
+
+本地或局域网调试时，不要修改业务代码；复制 `Resources/OpenApiConfig.example.plist` 为被忽略的 `Resources/OpenApiConfig.plist`，只改其中的 `baseUrl`。例如：
+
+```text
+http://192.168.x.x:18081
+```
+
+真机使用局域网 HTTP 调试时，iPhone 与服务端需要在同一网络，并按实际 IP / 端口填写 `baseUrl`。公网 HTTPS 入口不需要 ATS 例外；局域网 HTTP 调试仍依赖 `Info.plist` 中对应主机的 ATS 例外或后续改为 HTTPS。
 
 ## 本地 AK/SK 配置
 
 1. 复制 `Resources/OpenApiConfig.example.plist` 为 `Resources/OpenApiConfig.plist`。
 2. 填入本机开发用 `baseUrl`、`accessKey`、`secretKey`。
-3. 在 Xcode 中把 `OpenApiConfig.plist` 加入 `XingyuMusicBox` target 的 Copy Bundle Resources。
-4. `OpenApiConfig.plist` 已加入 `.gitignore`，不要提交真实 AK/SK。
+3. `OpenApiConfig.plist` 已加入 `.gitignore`，不要提交真实 AK/SK。
+4. Xcode 工程中的 `Copy Local OpenAPI Config` build phase 会在本地配置存在时把它复制进 app bundle。
 
 `MusicVaultConfig.default` 会优先读取 bundle 中的 `OpenApiConfig.plist`；未找到时只保留默认 base URL，不会生成凭证。缺少凭证时客户端会在发请求前报错，避免发出无签名请求。
 
@@ -77,12 +94,12 @@ let client = MusicVaultApiClient(config: config)
 
 - 星语音库当前不提供音频流接口，客户端只能使用它补全曲目、歌词、封面等元数据。
 - 列表里的 `artworkUrl` 是相对路径，需要用 `MusicVaultApiClient.absoluteURL(forOpenAPIPath:)` 拼成完整 URL。
-- 局域网 HTTP 已在 `Info.plist` 中为 `192.168.31.101` 配置 ATS 例外；换 IP 或域名后需要同步更新配置。
+- 默认公网 HTTPS 入口不需要 ATS 例外；局域网 HTTP 调试时如更换 IP 或端口，需要同步确认 `Info.plist` 的 ATS 配置。
 - 不要在日志中打印 Secret Key、签名原文或完整签名。需要定位凭证时仅打印 Access Key 掩码。
 
 ## 自测方法
 
-在当前局域网服务上验证：
+在当前公网 HTTPS 或局域网调试服务上验证：
 
 - `serverInfo()` 返回 `200`，`apiVersion == "v1"`。
 - `tracks(query: MusicVaultTrackListQuery(page: 0, pageSize: 20))` 返回曲目列表。
