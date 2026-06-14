@@ -34,6 +34,8 @@ fastlane/test_output/
 *.local
 Config.local.swift
 LocalConfig.swift
+apps/apple/ios/XingyuMusicBox/Resources/OpenApiConfig.plist
+apps/apple/ios/XingyuMusicBox/OpenApiConfig.plist
 
 # Archives / packages
 *.ipa

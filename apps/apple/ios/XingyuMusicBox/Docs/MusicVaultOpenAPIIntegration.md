@@ -11,12 +11,34 @@
 
 `musicVaultBaseUrl` 只能从 `MusicVaultConfig.defaultBaseURLString` 或显式注入的 `MusicVaultConfig` 读取，不在调用点散落硬编码。
 
-OpenAPI 默认不需要 token。若服务端开启 `xingyu.openapi.auth.enabled=true`，初始化客户端时用 `MusicVaultConfig(baseURLString:apiToken:)` 传入 token，客户端会自动携带 `Authorization: Bearer <token>`。
+星语音库 v1.1.3 起，所有 `/api/open/v1/*` 请求都必须使用 AK/SK + HMAC-SHA256 签名；旧 `Authorization: Bearer <token>` 和 `X-Xingyu-Api-Token` 不再可用。
 
 ```swift
-let config = MusicVaultConfig(baseURLString: "http://192.168.31.101:8080")
+let credential = OpenApiCredential(accessKey: "xmv_ak_dev", secretKey: "local-secret")
+let config = MusicVaultConfig(baseURLString: "http://192.168.31.101:8080", credential: credential)
 let client = MusicVaultApiClient(config: config)
 ```
+
+## 本地 AK/SK 配置
+
+1. 复制 `Resources/OpenApiConfig.example.plist` 为 `Resources/OpenApiConfig.plist`。
+2. 填入本机开发用 `baseUrl`、`accessKey`、`secretKey`。
+3. 在 Xcode 中把 `OpenApiConfig.plist` 加入 `XingyuMusicBox` target 的 Copy Bundle Resources。
+4. `OpenApiConfig.plist` 已加入 `.gitignore`，不要提交真实 AK/SK。
+
+`MusicVaultConfig.default` 会优先读取 bundle 中的 `OpenApiConfig.plist`；未找到时只保留默认 base URL，不会生成凭证。缺少凭证时客户端会在发请求前报错，避免发出无签名请求。
+
+## HMAC 签名规则
+
+契约来自 `xingyu-music-vault` v1.1.3 后端文档和测试：
+
+- 请求头：`X-Xingyu-Access-Key`、`X-Xingyu-Timestamp`、`X-Xingyu-Nonce`、`X-Xingyu-Signature-Version: v1`、`X-Xingyu-Signature`
+- canonical string 固定 5 行：`METHOD`、`PATH_WITH_CANONICAL_QUERY`、`SHA256_HEX_BODY`、`TIMESTAMP`、`NONCE`
+- query 按参数名升序、同名参数按值升序；key/value 使用 form URL encoding，空格编码为 `%20`
+- GET/DELETE 无 body 时，body hash 为 SHA-256 空字符串
+- HMAC 算法为 `HmacSHA256`，签名输出 lowercase hex
+- timestamp 为 Unix epoch milliseconds，默认允许偏移窗口为 300 秒
+- 认证失败返回 `401 OPENAPI_UNAUTHORIZED`；scope 不足返回 `403 OPENAPI_FORBIDDEN`
 
 ## 建议接入流程
 
@@ -30,7 +52,10 @@ let client = MusicVaultApiClient(config: config)
 
 - `serverInfo()`
 - `syncState()`
+- `syncChanges(sinceVersion:limit:)`
+- `tracks(query:)`
 - `matchTrack(query:)`
+- `track(id:)`
 - `lyricsMeta(trackId:)`
 - `lyrics(trackId:ifNoneMatch:)`
 - `artworkMeta(trackId:)`
@@ -53,12 +78,17 @@ let client = MusicVaultApiClient(config: config)
 - 星语音库当前不提供音频流接口，客户端只能使用它补全曲目、歌词、封面等元数据。
 - 列表里的 `artworkUrl` 是相对路径，需要用 `MusicVaultApiClient.absoluteURL(forOpenAPIPath:)` 拼成完整 URL。
 - 局域网 HTTP 已在 `Info.plist` 中为 `192.168.31.101` 配置 ATS 例外；换 IP 或域名后需要同步更新配置。
+- 不要在日志中打印 Secret Key、签名原文或完整签名。需要定位凭证时仅打印 Access Key 掩码。
 
-## 实测响应
+## 自测方法
 
-2026-05-30 在当前局域网服务 `http://192.168.31.101:8080` 上验证：
+在当前局域网服务上验证：
 
-- `GET /api/open/v1/server/info` 返回 `200`，`serviceVersion` 为 `0.9.3`，`apiVersion` 为 `v1`。
-- `GET /api/open/v1/sync/state` 返回 `200`，当前 `libraryVersion` 为 `1`，`trackCount` 为 `0`。
-- `GET /api/open/v1/match/track?title=test` 返回 `200`，`matched: false`，`reason: "No exact title match"`。
-- 当前库为空，`GET /api/open/v1/tracks/1/lyrics/meta` 与 `artwork/meta` 返回 `404 OPENAPI_TRACK_NOT_FOUND`。
+- `serverInfo()` 返回 `200`，`apiVersion == "v1"`。
+- `tracks(query: MusicVaultTrackListQuery(page: 0, pageSize: 20))` 返回曲目列表。
+- 对一个 `lyricsAvailable == true` 的曲目调用 `lyrics(trackId:ifNoneMatch:)` 成功。
+- 对一个 `artworkAvailable == true` 的曲目调用 `artwork(trackId:ifNoneMatch:)` 成功并能解码图片。
+- `syncChanges(sinceVersion: 0, limit: 500)` 返回增量结果。
+- 临时把本地 `secretKey` 改错，重新运行后请求应返回 `401`，界面/日志能看到认证错误提示。
+- 临时让签名 timestamp 偏离超过 300 秒，后端应返回 `401`；恢复设备时间或签名时间后请求恢复。
+- 播放本地歌曲，确认播放控制、歌词展示、封面展示仍按原逻辑降级或展示。

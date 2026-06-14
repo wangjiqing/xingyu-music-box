@@ -28,6 +28,31 @@ struct MusicVaultSyncState: Codable, Equatable {
     let changesAvailable: Bool
 }
 
+struct MusicVaultSyncChanges: Codable, Equatable {
+    let fromVersion: Int64
+    let toVersion: Int64
+    let hasMore: Bool
+    let items: [MusicVaultSyncChange]
+}
+
+struct MusicVaultSyncChange: Codable, Equatable, Identifiable {
+    var id: Int64 { version }
+
+    let version: Int64
+    let entityType: String
+    let entityId: Int64
+    let changeType: String
+    let changedFields: [String]
+    let updatedAt: String?
+}
+
+struct MusicVaultTrackPage: Codable, Equatable {
+    let items: [MusicVaultTrack]
+    let page: Int
+    let pageSize: Int
+    let total: Int64
+}
+
 struct MusicVaultTrack: Codable, Equatable, Identifiable {
     let id: Int64
     let title: String
@@ -118,6 +143,41 @@ struct MusicVaultTrackMatchQuery {
         items.appendIfPresent(name: "artist", value: artist)
         items.appendIfPresent(name: "album", value: album)
         items.appendIfPresent(name: "durationMs", value: durationMs.map(String.init))
+        return items
+    }
+}
+
+struct MusicVaultTrackListQuery {
+    var page: Int = 0
+    var pageSize: Int = 20
+    var keyword: String?
+    var artist: String?
+    var album: String?
+    var year: Int?
+    var genre: String?
+    var metadataStatus: String?
+    var lyricsStatus: String?
+    var artworkStatus: String?
+    var updatedAfter: String?
+    var sort: String?
+    var order: String?
+
+    var queryItems: [URLQueryItem] {
+        var items = [
+            URLQueryItem(name: "page", value: String(page)),
+            URLQueryItem(name: "pageSize", value: String(pageSize))
+        ]
+        items.appendIfPresent(name: "keyword", value: keyword)
+        items.appendIfPresent(name: "artist", value: artist)
+        items.appendIfPresent(name: "album", value: album)
+        items.appendIfPresent(name: "year", value: year.map(String.init))
+        items.appendIfPresent(name: "genre", value: genre)
+        items.appendIfPresent(name: "metadataStatus", value: metadataStatus)
+        items.appendIfPresent(name: "lyricsStatus", value: lyricsStatus)
+        items.appendIfPresent(name: "artworkStatus", value: artworkStatus)
+        items.appendIfPresent(name: "updatedAfter", value: updatedAfter)
+        items.appendIfPresent(name: "sort", value: sort)
+        items.appendIfPresent(name: "order", value: order)
         return items
     }
 }

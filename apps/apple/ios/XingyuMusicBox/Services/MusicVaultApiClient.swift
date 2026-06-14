@@ -5,6 +5,7 @@ enum MusicVaultApiError: LocalizedError {
     case invalidURL
     case invalidResponse
     case notModified
+    case signingFailed(Error)
     case server(statusCode: Int, response: MusicVaultErrorResponse?)
     case decodingFailed
     case networkFailed(Error)
@@ -19,7 +20,14 @@ enum MusicVaultApiError: LocalizedError {
             return "星语音库返回了无效响应。"
         case .notModified:
             return "资源未变化。"
+        case .signingFailed(let error):
+            return error.localizedDescription
         case .server(let statusCode, let response):
+            if statusCode == 401 || statusCode == 403 {
+                let message = response?.message ?? "OpenAPI 凭证无效或签名失败。"
+                let timeHint = response?.code == "OPENAPI_UNAUTHORIZED" ? " 如果刚刚校准过凭证，请同时检查设备时间是否准确。" : ""
+                return "星语音库认证失败（\(statusCode)）：\(message)\(timeHint)"
+            }
             return response.map { "星语音库请求失败（\(statusCode)）：\($0.message)" }
                 ?? "星语音库请求失败（\(statusCode)）。"
         case .decodingFailed:
@@ -57,6 +65,17 @@ final class MusicVaultApiClient {
 
     func syncState() async throws -> MusicVaultSyncState {
         try await get("/sync/state")
+    }
+
+    func syncChanges(sinceVersion: Int64 = 0, limit: Int = 500) async throws -> MusicVaultSyncChanges {
+        try await get("/sync/changes", queryItems: [
+            URLQueryItem(name: "sinceVersion", value: String(sinceVersion)),
+            URLQueryItem(name: "limit", value: String(limit))
+        ])
+    }
+
+    func tracks(query: MusicVaultTrackListQuery = MusicVaultTrackListQuery()) async throws -> MusicVaultTrackPage {
+        try await get("/tracks", queryItems: query.queryItems)
     }
 
     func track(id: Int64) async throws -> MusicVaultTrack {
@@ -174,8 +193,17 @@ final class MusicVaultApiClient {
         request.httpMethod = "GET"
         request.setValue(acceptHeader, forHTTPHeaderField: "Accept")
         request.setValue("XingyuMusicBox iOS", forHTTPHeaderField: "User-Agent")
-        if let apiToken = config.apiToken {
-            request.setValue("Bearer \(apiToken)", forHTTPHeaderField: "Authorization")
+        guard let credential = config.credential else {
+            throw MusicVaultApiError.signingFailed(OpenApiSigningError.missingCredential)
+        }
+        do {
+            let signer = OpenApiHmacSigner(credential: credential)
+            let headers = try signer.signedHeaders(method: "GET", url: url)
+            for (field, value) in headers {
+                request.setValue(value, forHTTPHeaderField: field)
+            }
+        } catch {
+            throw MusicVaultApiError.signingFailed(error)
         }
         return request
     }
