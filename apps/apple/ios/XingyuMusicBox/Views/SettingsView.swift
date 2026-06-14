@@ -461,7 +461,7 @@ private enum MusicVaultProbeStatus: Equatable {
         case .idle:
             return "点击按钮后会请求 server/info、sync/state、match/track、lyrics/meta 和 artwork/meta。"
         case .running:
-            return "正在请求局域网星语音库，请保持 iPhone 与服务端在同一 Wi-Fi。"
+            return "正在请求星语音库，请确认公网 HTTPS 或局域网调试入口可访问。"
         case .success:
             return "星语音乐盒已成功从星语音库获取数据。"
         case .failure(let message):

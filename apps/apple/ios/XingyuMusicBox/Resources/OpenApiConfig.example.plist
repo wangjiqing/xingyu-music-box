@@ -3,7 +3,7 @@
 <plist version="1.0">
 <dict>
 	<key>baseUrl</key>
-	<string>http://192.168.31.101:8080</string>
+	<string>https://www.oceanofstars.com.cn:18443</string>
 	<key>accessKey</key>
 	<string>xmv_ak_your_development_access_key</string>
 	<key>secretKey</key>

@@ -6,7 +6,7 @@ struct OpenApiCredential: Equatable {
 }
 
 struct MusicVaultConfig: Equatable {
-    static let defaultBaseURLString = "http://192.168.31.101:8080"
+    static let defaultBaseURLString = "https://www.oceanofstars.com.cn:18443"
     static let openAPIPathPrefix = "/api/open/v1"
 
     let baseURL: URL
