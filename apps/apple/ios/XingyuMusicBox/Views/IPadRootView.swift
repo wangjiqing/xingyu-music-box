@@ -52,22 +52,37 @@ struct IPadRootView: View {
 }
 
 private struct IPadNowPlayingView: View {
-    @EnvironmentObject private var viewModel: PlayerViewModel
-    @State private var isThemeSheetPresented = false
     @State private var activeDrawerPanel: IPadDrawerPanel?
-
-    var onShowLibrary: () -> Void = {}
 
     var body: some View {
         GeometryReader { proxy in
-            if shouldUseOriginalNowPlaying(size: proxy.size) {
-                NowPlayingView(onShowLibrary: onShowLibrary)
-            } else {
-                wideNowPlaying(size: proxy.size)
+            ZStack(alignment: .trailing) {
+                NowPlayingView {
+                    openDrawer(.library)
+                }
+                .blur(radius: activeDrawerPanel == nil ? 0 : 1.5)
+
+                if let activeDrawerPanel {
+                    Color.black.opacity(0.38)
+                        .ignoresSafeArea()
+                        .transition(.opacity)
+                        .onTapGesture {
+                            closeDrawer()
+                        }
+
+                    drawerContent(for: activeDrawerPanel)
+                        .frame(width: drawerWidth(for: activeDrawerPanel, availableWidth: proxy.size.width))
+                        .frame(maxHeight: .infinity)
+                        .transition(.move(edge: .trailing).combined(with: .opacity))
+                }
             }
-        }
-        .sheet(isPresented: $isThemeSheetPresented) {
-            ThemeSelectionView()
+            .overlay(alignment: .topTrailing) {
+                if !shouldUseOriginalNowPlaying(size: proxy.size) {
+                    topActions
+                        .padding(.top, 18)
+                        .padding(.trailing, 28)
+                }
+            }
         }
     }
 
@@ -75,145 +90,20 @@ private struct IPadNowPlayingView: View {
         size.width < 860 || size.height < 600
     }
 
-    private func wideNowPlaying(size: CGSize) -> some View {
-        ZStack(alignment: .trailing) {
-            ThemeBackground()
-
-            VStack(spacing: 0) {
-                header
-
-                if let song = viewModel.currentSong {
-                    HStack(alignment: .top, spacing: 20) {
-                        CoverPlayerPageView(
-                            song: song,
-                            isFavorite: viewModel.isFavorite(song),
-                            isPlaying: viewModel.isPlaying,
-                            playbackMode: viewModel.playbackMode,
-                            currentTime: viewModel.currentTime,
-                            duration: viewModel.duration,
-                            isAutoFetchingLyrics: viewModel.autoFetchingLyricsSongIDs.contains(song.id),
-                            showsLyricsPreview: false,
-                            quickActionsPlacement: .belowCover,
-                            onFavorite: {
-                                viewModel.toggleFavorite(for: song)
-                            },
-                            onList: {
-                                openDrawer(.library)
-                            },
-                            onTheme: {
-                                isThemeSheetPresented = true
-                            },
-                            onSeek: viewModel.seek,
-                            onPrevious: viewModel.previous,
-                            onTogglePlayback: viewModel.togglePlayback,
-                            onNext: viewModel.next,
-                            onTogglePlaybackMode: viewModel.togglePlaybackMode
-                        )
-                        .frame(width: min(max(size.width * 0.48, 420), 560))
-                        .frame(maxHeight: .infinity)
-                        .padding(.vertical, 18)
-                        .padding(.leading, 18)
-
-                        LyricsPageView(
-                            song: song,
-                            currentTime: viewModel.currentTime,
-                            playbackDuration: viewModel.duration,
-                            isPlaying: viewModel.isPlaying,
-                            isAutoFetchingLyrics: viewModel.autoFetchingLyricsSongIDs.contains(song.id),
-                            showsMiniControlBar: false,
-                            displayStyle: .spacious,
-                            onSeek: viewModel.seek,
-                            onPrevious: viewModel.previous,
-                            onTogglePlayback: viewModel.togglePlayback,
-                            onNext: viewModel.next
-                        )
-                        .padding(.vertical, 20)
-                        .padding(.trailing, 18)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    }
-                    .padding(.horizontal, 24)
-                    .padding(.top, 14)
-                    .padding(.bottom, 24)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                } else {
-                    ContentUnavailableView(
-                        "暂无歌曲",
-                        systemImage: "music.note",
-                        description: Text("请授权并刷新本机系统媒体库。")
-                    )
-                    .foregroundStyle(XYStyle.text)
-                    .padding(28)
-                    .glassCard()
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .padding(24)
-                }
+    private var topActions: some View {
+        HStack(spacing: 10) {
+            headerButton(title: "播放列表", systemImage: "music.note.list") {
+                openDrawer(.library)
             }
-            .blur(radius: activeDrawerPanel == nil ? 0 : 1.5)
 
-            if let activeDrawerPanel {
-                Color.black.opacity(0.38)
-                    .ignoresSafeArea()
-                    .transition(.opacity)
-                    .onTapGesture {
-                        closeDrawer()
-                    }
+            headerButton(title: "收藏", systemImage: "heart") {
+                openDrawer(.favorites)
+            }
 
-                drawerContent(for: activeDrawerPanel)
-                .frame(width: drawerWidth(for: activeDrawerPanel, availableWidth: size.width))
-                .frame(maxHeight: .infinity)
-                .transition(.move(edge: .trailing).combined(with: .opacity))
+            headerButton(title: "设置", systemImage: "gearshape") {
+                openDrawer(.settings)
             }
         }
-    }
-
-    private var header: some View {
-        HStack(spacing: 12) {
-            ZStack {
-                Circle()
-                    .fill(
-                        RadialGradient(
-                            colors: [.white, Color(red: 0.55, green: 0.89, blue: 1.0), Color(red: 0.02, green: 0.45, blue: 0.65)],
-                            center: .topLeading,
-                            startRadius: 2,
-                            endRadius: 34
-                        )
-                    )
-                    .frame(width: 42, height: 42)
-                    .shadow(color: XYStyle.accent.opacity(0.42), radius: 14)
-
-                Text("星")
-                    .font(.headline.weight(.black))
-                    .foregroundStyle(Color(red: 0.02, green: 0.13, blue: 0.20))
-            }
-
-            VStack(alignment: .leading, spacing: 4) {
-                Text("正在播放")
-                    .font(.title2.weight(.bold))
-                    .foregroundStyle(XYStyle.text)
-                Text("封面与歌词并排显示")
-                    .font(.caption)
-                    .foregroundStyle(XYStyle.muted)
-            }
-
-            Spacer()
-
-            HStack(spacing: 10) {
-                headerButton(title: "播放列表", systemImage: "music.note.list") {
-                    openDrawer(.library)
-                }
-
-                headerButton(title: "收藏", systemImage: "heart") {
-                    openDrawer(.favorites)
-                }
-
-                headerButton(title: "设置", systemImage: "gearshape") {
-                    openDrawer(.settings)
-                }
-            }
-        }
-        .padding(.horizontal, 24)
-        .padding(.top, 18)
-        .padding(.bottom, 6)
     }
 
     private func headerButton(title: String, systemImage: String, action: @escaping () -> Void) -> some View {
@@ -313,10 +203,10 @@ private struct IPadMusicPanelView: View {
 
             HStack(spacing: 7) {
                 Circle()
-                    .fill(selectedPage == 0 ? XYStyle.accent : Color.white.opacity(0.34))
+                    .fill(selectedPage == 0 ? XYStyle.accent : XYStyle.lyricsDimmed)
                     .frame(width: 7, height: 7)
                 Circle()
-                    .fill(selectedPage == 1 ? XYStyle.accent : Color.white.opacity(0.34))
+                    .fill(selectedPage == 1 ? XYStyle.accent : XYStyle.lyricsDimmed)
                     .frame(width: 7, height: 7)
             }
             .padding(.vertical, 10)
@@ -326,7 +216,7 @@ private struct IPadMusicPanelView: View {
                 .foregroundStyle(XYStyle.text)
                 .frame(maxWidth: .infinity)
                 .frame(height: 54)
-                .background(Color.white.opacity(0.05))
+                .background(XYStyle.controlBackground)
         }
         .background(.ultraThinMaterial)
         .background(XYStyle.panelDark.opacity(0.92))
@@ -352,7 +242,7 @@ private struct IPadMusicPanelView: View {
                         .font(.subheadline.weight(.bold))
                         .foregroundStyle(XYStyle.muted)
                         .frame(width: 34, height: 34)
-                        .background(Color.white.opacity(0.08), in: Circle())
+                        .background(XYStyle.controlBackground, in: Circle())
                 }
                 .buttonStyle(.plain)
             }
@@ -377,7 +267,7 @@ private struct IPadMusicPanelView: View {
             .font(.subheadline)
             .padding(.horizontal, 12)
             .frame(height: 38)
-            .background(Color.black.opacity(0.20), in: Capsule())
+            .background(XYStyle.controlBackground, in: Capsule())
             .overlay {
                 Capsule().stroke(XYStyle.line, lineWidth: 1)
             }
@@ -528,7 +418,7 @@ private struct IPadFavoritesPanelView: View {
                     .font(.subheadline.weight(.bold))
                     .foregroundStyle(XYStyle.muted)
                     .frame(width: 34, height: 34)
-                    .background(Color.white.opacity(0.08), in: Circle())
+                    .background(XYStyle.controlBackground, in: Circle())
             }
             .buttonStyle(.plain)
         }
@@ -543,7 +433,7 @@ private struct IPadFavoritesPanelView: View {
             .foregroundStyle(XYStyle.text)
             .frame(maxWidth: .infinity)
             .frame(height: 54)
-            .background(Color.white.opacity(0.05))
+            .background(XYStyle.controlBackground)
     }
 }
 
@@ -564,7 +454,7 @@ private struct IPadSettingsPanelView: View {
                         .font(.subheadline.weight(.bold))
                         .foregroundStyle(XYStyle.muted)
                         .frame(width: 34, height: 34)
-                        .background(Color.white.opacity(0.08), in: Circle())
+                        .background(XYStyle.controlBackground, in: Circle())
                 }
                 .buttonStyle(.plain)
             }

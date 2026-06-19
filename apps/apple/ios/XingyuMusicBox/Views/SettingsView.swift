@@ -26,31 +26,48 @@ struct SettingsView: View {
 
                     settingsCard(title: "主题") {
                         VStack(alignment: .leading, spacing: 12) {
-                            Button {
-                                isThemeSheetPresented = true
-                            } label: {
-                                HStack(spacing: 12) {
-                                    ThemeSwatches(theme: themeManager.currentTheme)
-                                        .frame(width: 58, height: 32)
+                            HStack(spacing: 12) {
+                                Button {
+                                    isThemeSheetPresented = true
+                                } label: {
+                                    HStack(spacing: 12) {
+                                        ThemeSwatches(theme: themeManager.currentTheme)
+                                            .frame(width: 58, height: 32)
 
-                                    VStack(alignment: .leading, spacing: 4) {
-                                        Text("主题皮肤")
-                                            .font(.headline)
-                                            .foregroundStyle(XYStyle.text)
-                                        Text(themeManager.currentTheme.displayName)
-                                            .font(.caption)
-                                            .foregroundStyle(XYStyle.muted)
+                                        VStack(alignment: .leading, spacing: 4) {
+                                            Text("主题皮肤")
+                                                .font(.headline)
+                                                .foregroundStyle(XYStyle.text)
+                                            Text(themeManager.currentTheme.displayName)
+                                                .font(.caption)
+                                                .foregroundStyle(XYStyle.muted)
+                                        }
+
+                                        Spacer()
+
+                                        Image(systemName: "chevron.right")
+                                            .font(.caption.weight(.semibold))
+                                            .foregroundStyle(XYStyle.accent)
                                     }
-
-                                    Spacer()
-
-                                    Image(systemName: "chevron.right")
-                                        .font(.caption.weight(.semibold))
-                                        .foregroundStyle(XYStyle.accent)
+                                    .padding(.vertical, 4)
                                 }
-                                .padding(.vertical, 4)
+                                .buttonStyle(.plain)
+
+                                Button {
+                                    themeManager.selectNextTheme()
+                                } label: {
+                                    Image(systemName: "tshirt.fill")
+                                        .font(.headline.weight(.semibold))
+                                        .foregroundStyle(XYStyle.text)
+                                        .frame(width: 40, height: 40)
+                                        .background(XYStyle.accent.opacity(0.30), in: Circle())
+                                        .overlay {
+                                            Circle().stroke(XYStyle.line, lineWidth: 1)
+                                        }
+                                }
+                                .buttonStyle(.plain)
+                                .accessibilityLabel("一键换肤")
                             }
-                            .buttonStyle(.plain)
                         }
                     }
 
@@ -822,11 +839,11 @@ private struct SystemMediaLibraryLyricsProbeRow: View {
             if let preview = item.lyricsPreview {
                 Text(preview)
                     .font(.caption)
-                    .foregroundStyle(Color.white.opacity(0.78))
+                    .foregroundStyle(XYStyle.text)
                     .lineSpacing(3)
                     .padding(10)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(Color.black.opacity(0.14), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+                    .background(XYStyle.controlBackground, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
                     .overlay {
                         RoundedRectangle(cornerRadius: 8, style: .continuous)
                             .stroke(XYStyle.line, lineWidth: 1)

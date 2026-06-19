@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct ProgressSliderView: View {
+    @EnvironmentObject private var themeManager: ThemeManager
     let currentTime: Double
     let duration: Double
     let onSeek: (Double) -> Void
@@ -39,7 +40,7 @@ struct ProgressSliderView: View {
             }
             .font(.caption)
             .monospacedDigit()
-            .foregroundStyle(Color.white.opacity(0.72))
+            .foregroundStyle(XYStyle.text)
 
             GeometryReader { proxy in
                 let width = proxy.size.width
@@ -49,7 +50,7 @@ struct ProgressSliderView: View {
 
                 ZStack(alignment: .leading) {
                     Capsule()
-                        .fill(Color.white.opacity(0.16))
+                        .fill(XYStyle.controlBackground)
                         .frame(height: trackHeight)
 
                     Capsule()
@@ -60,7 +61,7 @@ struct ProgressSliderView: View {
                     Circle()
                         .fill(
                             RadialGradient(
-                                colors: [.white, Color(red: 0.62, green: 0.91, blue: 1.0), XYStyle.accent],
+                                colors: [XYStyle.accent, XYStyle.accent, XYStyle.accent],
                                 center: .topLeading,
                                 startRadius: 1,
                                 endRadius: 16
@@ -69,7 +70,7 @@ struct ProgressSliderView: View {
                         .frame(width: knobSize, height: knobSize)
                         .shadow(color: XYStyle.accent.opacity(0.9), radius: 9)
                         .overlay {
-                            Circle().stroke(Color.white.opacity(0.8), lineWidth: 1)
+                            Circle().stroke(XYStyle.accent.opacity(0.6), lineWidth: 1)
                         }
                         .offset(x: min(max(width * progress - knobSize / 2, 0), width - knobSize))
                 }

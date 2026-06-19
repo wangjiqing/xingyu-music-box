@@ -2,6 +2,7 @@ import SwiftUI
 import UIKit
 
 struct CoverView: View {
+    @EnvironmentObject private var themeManager: ThemeManager
     let song: Song
     let size: CGFloat
     var allowsMusicVaultLookup = false
@@ -28,7 +29,7 @@ struct CoverView: View {
         .overlay {
             RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
                 .stroke(
-                    size > 100 ? Color.white.opacity(0.12) : Color.white.opacity(0.18),
+                    XYStyle.line,
                     lineWidth: 1
                 )
         }

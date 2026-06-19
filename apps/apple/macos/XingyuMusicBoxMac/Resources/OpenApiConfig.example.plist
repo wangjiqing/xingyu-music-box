@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>baseUrl</key>
+	<string>https://www.oceanofstars.com.cn:18443</string>
+	<key>accessKey</key>
+	<string>xmv_ak_your_development_access_key</string>
+	<key>secretKey</key>
+	<string>xmv_sk_your_development_secret_key</string>
+</dict>
+</plist>

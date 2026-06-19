@@ -8,26 +8,30 @@ struct NowPlayingView: View {
     var onShowLibrary: () -> Void = {}
 
     var body: some View {
-        ZStack {
-            ThemeBackground()
+        GeometryReader { proxy in
+            let metrics = NowPlayingLayoutMetrics(size: proxy.size)
 
-            VStack(spacing: 12) {
-                header
+            ZStack {
+                ThemeBackground()
 
-                if let song = viewModel.currentSong {
-                    nowPlayingContent(song)
-                        .frame(maxHeight: .infinity)
-                } else {
-                    ContentUnavailableView("暂无歌曲", systemImage: "music.note", description: Text("请授权并刷新本机系统媒体库。"))
-                        .foregroundStyle(XYStyle.text)
-                        .padding(22)
-                        .glassCard()
+                VStack(spacing: metrics.isRegular ? 14 : 12) {
+                    header
+
+                    if let song = viewModel.currentSong {
+                        nowPlayingContent(song)
+                    } else {
+                        ContentUnavailableView("暂无歌曲", systemImage: "music.note", description: Text("请授权并刷新本机系统媒体库。"))
+                            .foregroundStyle(XYStyle.text)
+                            .padding(22)
+                            .glassCard()
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    }
                 }
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                .padding(.horizontal, metrics.isRegular ? 28 : 8)
+                .padding(.top, metrics.isRegular ? 18 : 12)
+                .padding(.bottom, metrics.isRegular ? 24 : 84)
             }
-            .frame(maxHeight: .infinity, alignment: .top)
-            .padding(.horizontal, 20)
-            .padding(.top, 12)
-            .padding(.bottom, 84)
         }
         .sheet(isPresented: $isThemeSheetPresented) {
             ThemeSelectionView()
@@ -70,35 +74,11 @@ struct NowPlayingView: View {
     }
 
     private func nowPlayingContent(_ song: Song) -> some View {
-        VStack(spacing: 11) {
-            HStack(spacing: 8) {
-                ForEach(0..<3, id: \.self) { index in
-                    Button {
-                        selectedPage = index
-                    } label: {
-                        Circle()
-                            .fill(index == selectedPage ? XYStyle.accent : Color.white.opacity(0.45))
-                            .frame(width: 7, height: 7)
-                            .shadow(color: index == selectedPage ? XYStyle.accent.opacity(0.8) : .clear, radius: 6)
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel(pageTitle(for: index))
-                }
-            }
+        GeometryReader { proxy in
+            let metrics = NowPlayingLayoutMetrics(size: proxy.size)
 
-            TabView(selection: $selectedPage) {
-                RecentHistoryPageView(
-                    records: viewModel.recentPlayRecords,
-                    songs: viewModel.songs,
-                    currentSong: viewModel.currentSong,
-                    statusText: viewModel.audioImportStatus(for:),
-                    onSelect: viewModel.play,
-                    onClear: viewModel.clearRecentPlays
-                )
-                .frame(maxHeight: .infinity, alignment: .top)
-                .tag(0)
-
-                CoverPlayerPageView(
+            if metrics.isRegular {
+                RegularNowPlayingLayout(
                     song: song,
                     isFavorite: viewModel.isFavorite(song),
                     isPlaying: viewModel.isPlaying,
@@ -106,44 +86,147 @@ struct NowPlayingView: View {
                     currentTime: viewModel.currentTime,
                     duration: viewModel.duration,
                     isAutoFetchingLyrics: viewModel.autoFetchingLyricsSongIDs.contains(song.id),
-                    onFavorite: {
-                        viewModel.toggleFavorite(for: song)
-                    },
-                    onList: {
-                        selectedPage = 0
-                    },
-                    onTheme: {
-                        isThemeSheetPresented = true
-                    },
+                    onFavorite: { viewModel.toggleFavorite(for: song) },
+                    onList: { selectedPage = 0 },
+                    onTheme: { isThemeSheetPresented = true },
                     onSeek: viewModel.seek,
                     onPrevious: viewModel.previous,
                     onTogglePlayback: viewModel.togglePlayback,
                     onNext: viewModel.next,
                     onTogglePlaybackMode: viewModel.togglePlaybackMode
                 )
-                .frame(maxHeight: .infinity, alignment: .top)
-                .tag(1)
-
-                LyricsPageView(
+            } else {
+                CompactNowPlayingLayout(
+                    selectedPage: $selectedPage,
                     song: song,
-                    currentTime: viewModel.currentTime,
-                    playbackDuration: viewModel.duration,
+                    recentRecords: viewModel.recentPlayRecords,
+                    songs: viewModel.songs,
+                    currentSong: viewModel.currentSong,
+                    statusText: viewModel.audioImportStatus(for:),
+                    isFavorite: viewModel.isFavorite(song),
                     isPlaying: viewModel.isPlaying,
+                    playbackMode: viewModel.playbackMode,
+                    currentTime: viewModel.currentTime,
+                    duration: viewModel.duration,
                     isAutoFetchingLyrics: viewModel.autoFetchingLyricsSongIDs.contains(song.id),
+                    onSelectRecent: viewModel.play,
+                    onClearRecent: viewModel.clearRecentPlays,
+                    onFavorite: { viewModel.toggleFavorite(for: song) },
+                    onList: { selectedPage = 0 },
+                    onTheme: { isThemeSheetPresented = true },
                     onSeek: viewModel.seek,
                     onPrevious: viewModel.previous,
                     onTogglePlayback: viewModel.togglePlayback,
-                    onNext: viewModel.next
+                    onNext: viewModel.next,
+                    onTogglePlaybackMode: viewModel.togglePlaybackMode
                 )
-                    .frame(maxHeight: .infinity, alignment: .top)
-                    .tag(2)
             }
-            .tabViewStyle(.page(indexDisplayMode: .never))
-            .frame(maxHeight: .infinity)
         }
-        .padding(.horizontal, 2)
-        .padding(.vertical, 8)
-        .frame(maxHeight: .infinity)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+}
+
+// MARK: - Compact Layout (iPhone / Narrow iPad)
+
+private struct CompactNowPlayingLayout: View {
+    @Binding var selectedPage: Int
+
+    let song: Song
+    let recentRecords: [RecentPlayRecord]
+    let songs: [Song]
+    let currentSong: Song?
+    let statusText: (Song) -> String
+    let isFavorite: Bool
+    let isPlaying: Bool
+    let playbackMode: PlaybackMode
+    let currentTime: Double
+    let duration: Double
+    let isAutoFetchingLyrics: Bool
+    let onSelectRecent: (Song) -> Void
+    let onClearRecent: () -> Void
+    let onFavorite: () -> Void
+    let onList: () -> Void
+    let onTheme: () -> Void
+    let onSeek: (Double) -> Void
+    let onPrevious: () -> Void
+    let onTogglePlayback: () -> Void
+    let onNext: () -> Void
+    let onTogglePlaybackMode: () -> Void
+
+    var body: some View {
+        VStack(spacing: 11) {
+            pageDots
+
+            GeometryReader { pageProxy in
+                TabView(selection: $selectedPage) {
+                    RecentHistoryPageView(
+                        records: recentRecords,
+                        songs: songs,
+                        currentSong: currentSong,
+                        statusText: statusText,
+                        onSelect: onSelectRecent,
+                        onClear: onClearRecent
+                    )
+                    .frame(width: pageProxy.size.width, height: pageProxy.size.height)
+                    .tag(0)
+
+                    CoverPlayerPageView(
+                        song: song,
+                        isFavorite: isFavorite,
+                        isPlaying: isPlaying,
+                        playbackMode: playbackMode,
+                        currentTime: currentTime,
+                        duration: duration,
+                        isAutoFetchingLyrics: isAutoFetchingLyrics,
+                        onFavorite: onFavorite,
+                        onList: onList,
+                        onTheme: onTheme,
+                        onSeek: onSeek,
+                        onPrevious: onPrevious,
+                        onTogglePlayback: onTogglePlayback,
+                        onNext: onNext,
+                        onTogglePlaybackMode: onTogglePlaybackMode
+                    )
+                    .frame(width: pageProxy.size.width, height: pageProxy.size.height)
+                    .tag(1)
+
+                    LyricsPageView(
+                        song: song,
+                        currentTime: currentTime,
+                        playbackDuration: duration,
+                        isPlaying: isPlaying,
+                        isAutoFetchingLyrics: isAutoFetchingLyrics,
+                        onSeek: onSeek,
+                        onPrevious: onPrevious,
+                        onTogglePlayback: onTogglePlayback,
+                        onNext: onNext
+                    )
+                    .frame(width: pageProxy.size.width, height: pageProxy.size.height)
+                    .tag(2)
+                }
+                .tabViewStyle(.page(indexDisplayMode: .never))
+                .frame(width: pageProxy.size.width, height: pageProxy.size.height)
+            }
+        }
+        .padding(.vertical, 4)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    private var pageDots: some View {
+        HStack(spacing: 8) {
+            ForEach(0..<3, id: \.self) { index in
+                Button {
+                    selectedPage = index
+                } label: {
+                    Circle()
+                        .fill(index == selectedPage ? XYStyle.accent : XYStyle.lyricsDimmed)
+                        .frame(width: 7, height: 7)
+                        .shadow(color: index == selectedPage ? XYStyle.accent.opacity(0.8) : .clear, radius: 6)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(pageTitle(for: index))
+            }
+        }
     }
 
     private func pageTitle(for index: Int) -> String {
@@ -194,7 +277,7 @@ struct RecentHistoryPageView: View {
                         .font(.subheadline.weight(.semibold))
                         .foregroundStyle(rows.isEmpty ? XYStyle.muted : XYStyle.danger)
                         .frame(width: 36, height: 36)
-                        .background(Color.white.opacity(0.06), in: Circle())
+                        .background(XYStyle.controlBackground, in: Circle())
                         .overlay {
                             Circle().stroke(XYStyle.line, lineWidth: 1)
                         }
@@ -261,7 +344,7 @@ struct RecentHistoryRowView: View {
 
                 Text(formatDate(playedAt))
                     .font(.caption2)
-                    .foregroundStyle(Color.white.opacity(0.46))
+                    .foregroundStyle(XYStyle.lyricsDimmed)
                     .lineLimit(1)
             }
 
@@ -292,11 +375,6 @@ struct RecentHistoryRowView: View {
 }
 
 struct CoverPlayerPageView: View {
-    enum QuickActionsPlacement {
-        case side
-        case belowCover
-    }
-
     let song: Song
     let isFavorite: Bool
     let isPlaying: Bool
@@ -304,8 +382,7 @@ struct CoverPlayerPageView: View {
     let currentTime: Double
     let duration: Double
     let isAutoFetchingLyrics: Bool
-    var showsLyricsPreview = true
-    var quickActionsPlacement: QuickActionsPlacement = .side
+    var showsLyricsPreview = false
     let onFavorite: () -> Void
     let onList: () -> Void
     let onTheme: () -> Void
@@ -318,15 +395,19 @@ struct CoverPlayerPageView: View {
     @State private var musicVaultMetadata: MusicVaultMetadataDisplay?
     @State private var musicVaultMetadataSongID: String?
     @State private var cachedLyrics: CachedLyrics?
+    @State private var phonographImage: UIImage?
 
     var body: some View {
         GeometryReader { proxy in
             content(availableSize: proxy.size)
-                .frame(width: proxy.size.width, height: proxy.size.height, alignment: .top)
         }
-        .onAppear(perform: refreshCachedLyrics)
+        .onAppear {
+            refreshCachedLyrics()
+            loadPhonographArtwork()
+        }
         .onChange(of: song.id) { _, _ in
             refreshCachedLyrics()
+            loadPhonographArtwork()
         }
         .onReceive(NotificationCenter.default.publisher(for: .cachedLyricsDidChange)) { _ in
             refreshCachedLyrics()
@@ -336,89 +417,42 @@ struct CoverPlayerPageView: View {
         }
     }
 
+    private func loadPhonographArtwork() {
+        let targetSize = CGSize(width: 300 * UIScreen.main.scale, height: 300 * UIScreen.main.scale)
+        phonographImage = SongArtworkProvider.shared.image(
+            for: song,
+            targetSize: targetSize,
+            allowMediaLibraryLookup: true
+        )
+    }
+
     private func content(availableSize: CGSize) -> some View {
-        let compact = availableSize.height < 620
-        let coverSize = min(max(210, availableSize.height * (compact ? 0.36 : 0.42)), max(210, availableSize.width - 78), 300)
-        let spacing: CGFloat = compact ? 7 : 11
+        let layout = PlayerColumnLayout(
+            availableSize: availableSize,
+            style: .compact
+        )
 
-        return VStack(spacing: spacing) {
-            VStack(spacing: compact ? 8 : 12) {
-                CoverView(song: song, size: coverSize, allowsMusicVaultLookup: true)
-
-                if quickActionsPlacement == .belowCover {
-                    PlayerQuickActionsView(
-                        placement: .horizontal,
-                        isFavorite: isFavorite,
-                        onFavorite: onFavorite,
-                        onList: onList,
-                        onTheme: onTheme
-                    )
-                }
-            }
-            .frame(maxWidth: .infinity, alignment: .center)
-            .overlay(alignment: .trailing) {
-                if quickActionsPlacement == .side {
-                    PlayerQuickActionsView(
-                        placement: .vertical,
-                        isFavorite: isFavorite,
-                        onFavorite: onFavorite,
-                        onList: onList,
-                        onTheme: onTheme
-                    )
-                    .padding(.trailing, 4)
-                }
-            }
-
-            VStack(spacing: 5) {
-                Text(displayMetadata.title)
-                    .font(.title3.weight(.semibold))
-                    .foregroundStyle(XYStyle.text)
-                    .multilineTextAlignment(.center)
-                    .lineLimit(2)
-
-                Text([displayMetadata.artist.nilIfBlank, displayMetadata.albumLine.nilIfBlank].compactMap { $0 }.joined(separator: " · "))
-                    .font(.callout.weight(.medium))
-                    .foregroundStyle(XYStyle.muted)
-                    .lineLimit(1)
-
-                if displayMetadata.isFromMusicVault {
-                    Text(displayMetadata.detailLine)
-                        .font(.caption2.weight(.semibold))
-                        .foregroundStyle(XYStyle.accent.opacity(0.92))
-                        .lineLimit(1)
-                }
-            }
-
-            if showsLyricsPreview {
-                LyricsPreviewView(
-                    cachedLyrics: cachedLyrics,
-                    currentTime: currentTime,
-                    isLoading: cachedLyrics == nil && isAutoFetchingLyrics
-                )
-                    .frame(height: compact ? 48 : nil)
-                    .clipped()
-            }
-
-            if !compact {
-                AudioVisualizerView(isPlaying: isPlaying)
-            }
-
-            ProgressSliderView(
-                currentTime: currentTime,
-                duration: duration,
-                onSeek: onSeek
-            )
-
-            PlayerControlsView(
-                isPlaying: isPlaying,
-                isFavorite: isFavorite,
-                playbackMode: playbackMode,
-                onPrevious: onPrevious,
-                onTogglePlayback: onTogglePlayback,
-                onNext: onNext,
-                onTogglePlaybackMode: onTogglePlaybackMode
-            )
-        }
+        return LayeredCoverPlayerSurface(
+            coverImage: phonographImage,
+            isPlaying: isPlaying,
+            metadata: displayMetadata,
+            cachedLyrics: cachedLyrics,
+            currentTime: currentTime,
+            duration: duration,
+            isAutoFetchingLyrics: isAutoFetchingLyrics,
+            isFavorite: isFavorite,
+            playbackMode: playbackMode,
+            showsLyricsPreview: showsLyricsPreview,
+            layout: layout,
+            onSeek: onSeek,
+            onFavorite: onFavorite,
+            onList: onList,
+            onTheme: onTheme,
+            onPrevious: onPrevious,
+            onTogglePlayback: onTogglePlayback,
+            onNext: onNext,
+            onTogglePlaybackMode: onTogglePlaybackMode
+        )
     }
 
     private var displayMetadata: PlayerDisplayMetadata {
@@ -482,6 +516,695 @@ private struct PlayerDisplayMetadata {
 
     var detailLine: String {
         detailItems.joined(separator: " · ")
+    }
+}
+
+// MARK: - Layout Detection
+
+private struct NowPlayingLayoutMetrics {
+    let isRegular: Bool
+
+    init(size: CGSize) {
+        self.isRegular = size.width >= 900
+            && size.width / max(size.height, 1) >= 1.15
+    }
+}
+
+// MARK: - Regular Layout (iPad Landscape Dual Column)
+
+/// iPad 横屏双栏布局：左栏 CoverPlayerColumn + 右栏 LyricsColumn。
+/// 不使用 .frame(maxHeight: .infinity) 抢夺高度，不依赖 offset / 魔法 padding。
+private struct RegularNowPlayingLayout: View {
+    let song: Song
+    let isFavorite: Bool
+    let isPlaying: Bool
+    let playbackMode: PlaybackMode
+    let currentTime: Double
+    let duration: Double
+    let isAutoFetchingLyrics: Bool
+    let onFavorite: () -> Void
+    let onList: () -> Void
+    let onTheme: () -> Void
+    let onSeek: (Double) -> Void
+    let onPrevious: () -> Void
+    let onTogglePlayback: () -> Void
+    let onNext: () -> Void
+    let onTogglePlaybackMode: () -> Void
+
+    @State private var musicVaultMetadata: MusicVaultMetadataDisplay?
+    @State private var musicVaultMetadataSongID: String?
+    @State private var cachedLyrics: CachedLyrics?
+    @State private var phonographImage: UIImage?
+
+    var body: some View {
+        GeometryReader { proxy in
+            let totalWidth = proxy.size.width
+            let totalHeight = proxy.size.height
+            let gap: CGFloat = 28
+            let leftWidth = (totalWidth - gap) * 0.52
+            let rightWidth = (totalWidth - gap) * 0.48
+
+            HStack(alignment: .top, spacing: gap) {
+                CoverPlayerColumn(
+                    song: song,
+                    coverImage: phonographImage,
+                    isPlaying: isPlaying,
+                    isFavorite: isFavorite,
+                    playbackMode: playbackMode,
+                    currentTime: currentTime,
+                    duration: duration,
+                    displayMetadata: displayMetadata,
+                    onFavorite: onFavorite,
+                    onList: onList,
+                    onTheme: onTheme,
+                    onSeek: onSeek,
+                    onPrevious: onPrevious,
+                    onTogglePlayback: onTogglePlayback,
+                    onNext: onNext,
+                    onTogglePlaybackMode: onTogglePlaybackMode,
+                    availableSize: CGSize(width: leftWidth, height: totalHeight)
+                )
+                .frame(width: leftWidth)
+
+                LyricsColumn(
+                    song: song,
+                    cachedLyrics: cachedLyrics,
+                    currentTime: currentTime,
+                    playbackDuration: duration,
+                    isPlaying: isPlaying,
+                    isAutoFetchingLyrics: isAutoFetchingLyrics,
+                    onSeek: onSeek
+                )
+                .frame(width: rightWidth)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+        .onAppear {
+            refreshCachedLyrics()
+            loadPhonographArtwork()
+        }
+        .onChange(of: song.id) { _, _ in
+            refreshCachedLyrics()
+            loadPhonographArtwork()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .cachedLyricsDidChange)) { _ in
+            refreshCachedLyrics()
+        }
+        .task(id: song.id) {
+            await loadMusicVaultMetadata()
+        }
+    }
+
+    private var displayMetadata: PlayerDisplayMetadata {
+        if musicVaultMetadataSongID == song.id, let musicVaultMetadata {
+            return PlayerDisplayMetadata(musicVault: musicVaultMetadata, song: song)
+        }
+        return PlayerDisplayMetadata(song: song)
+    }
+
+    private func loadPhonographArtwork() {
+        let targetSize = CGSize(width: 300 * UIScreen.main.scale, height: 300 * UIScreen.main.scale)
+        phonographImage = SongArtworkProvider.shared.image(
+            for: song,
+            targetSize: targetSize,
+            allowMediaLibraryLookup: true
+        )
+    }
+
+    private func loadMusicVaultMetadata() async {
+        let result = await MusicVaultMetadataService.shared.fetchMetadata(
+            for: song,
+            duration: duration > 0 ? duration : song.duration.secondsFromClockText
+        )
+        await MainActor.run {
+            if let result {
+                musicVaultMetadata = result
+                musicVaultMetadataSongID = song.id
+            } else {
+                musicVaultMetadata = nil
+                musicVaultMetadataSongID = nil
+            }
+        }
+    }
+
+    private func refreshCachedLyrics() {
+        cachedLyrics = LyricsCacheStore.shared.cachedLyrics(for: song.id)
+    }
+}
+
+// MARK: - Cover Player Column
+
+private enum PlayerColumnStyle {
+    case compact
+    case regular
+}
+
+private struct PlayerColumnLayout {
+    let metadataWidth: CGFloat
+    let controlsBottomPadding: CGFloat
+    let heroBottomGap: CGFloat
+
+    private let style: PlayerColumnStyle
+    private let phonographAspectRatio: CGFloat = 381.0 / 450.5
+
+    init(
+        availableSize: CGSize,
+        style: PlayerColumnStyle
+    ) {
+        self.style = style
+
+        let maxWidthRatio: CGFloat = style == .regular ? 0.98 : 1.0
+        metadataWidth = min(availableSize.width * maxWidthRatio, style == .regular ? 620 : 430)
+        controlsBottomPadding = style == .regular ? 8 : 4
+        heroBottomGap = style == .regular ? 14 : 8
+    }
+
+    var sideActionsWidth: CGFloat {
+        style == .regular ? 60 : 58
+    }
+
+    var heroActionSpacing: CGFloat {
+        style == .regular ? 12 : 0
+    }
+
+    var sideActionsOverlap: CGFloat {
+        style == .regular ? 0 : 12
+    }
+
+    var visualizerHeight: CGFloat {
+        42
+    }
+
+    var heroStackSpacing: CGFloat {
+        style == .regular ? 12 : 10
+    }
+
+    func visualizerWidth(for heroGroupWidth: CGFloat) -> CGFloat {
+        min(max(heroGroupWidth * 0.54, 180), metadataWidth)
+    }
+
+    func phonographSize(in stageSize: CGSize) -> CGFloat {
+        let maxWidthRatio: CGFloat = style == .regular ? 0.98 : 0.72
+        let maxSize: CGFloat = style == .regular ? 820 : 390
+        let minSize: CGFloat = style == .regular ? 360 : 240
+        let maxByWidth = stageSize.width * maxWidthRatio
+        let maxByHeight = stageSize.height / phonographAspectRatio
+        let fittedSize = min(maxByWidth, maxByHeight, maxSize)
+
+        return max(minSize, fittedSize)
+    }
+
+    func phonographHeight(for size: CGFloat) -> CGFloat {
+        size * phonographAspectRatio
+    }
+}
+
+private struct HeightPreferenceKey: PreferenceKey {
+    static var defaultValue: CGFloat = 0
+
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = max(value, nextValue())
+    }
+}
+
+private extension View {
+    func readHeight(_ onChange: @escaping (CGFloat) -> Void) -> some View {
+        background {
+            GeometryReader { proxy in
+                Color.clear
+                    .preference(key: HeightPreferenceKey.self, value: proxy.size.height)
+            }
+        }
+        .onPreferenceChange(HeightPreferenceKey.self, perform: onChange)
+    }
+}
+
+private struct LayeredCoverPlayerSurface: View {
+    let coverImage: UIImage?
+    let isPlaying: Bool
+    let metadata: PlayerDisplayMetadata
+    let cachedLyrics: CachedLyrics?
+    let currentTime: Double
+    let duration: Double
+    let isAutoFetchingLyrics: Bool
+    let isFavorite: Bool
+    let playbackMode: PlaybackMode
+    let showsLyricsPreview: Bool
+    let layout: PlayerColumnLayout
+    let onSeek: (Double) -> Void
+    let onFavorite: () -> Void
+    let onList: () -> Void
+    let onTheme: () -> Void
+    let onPrevious: () -> Void
+    let onTogglePlayback: () -> Void
+    let onNext: () -> Void
+    let onTogglePlaybackMode: () -> Void
+
+    @State private var controlsHeight: CGFloat = 0
+
+    var body: some View {
+        GeometryReader { proxy in
+            let reservedHeight = controlsHeight + layout.controlsBottomPadding + layout.heroBottomGap
+            let stageHeight = max(proxy.size.height - reservedHeight, 0)
+            let sideActionFootprint = max(
+                layout.sideActionsWidth + layout.heroActionSpacing - layout.sideActionsOverlap,
+                0
+            )
+            let stageSize = CGSize(
+                width: max(proxy.size.width - sideActionFootprint, 0),
+                height: max(stageHeight - layout.visualizerHeight - layout.heroStackSpacing, 0)
+            )
+            let phonographSize = layout.phonographSize(in: stageSize)
+
+            ZStack(alignment: .bottom) {
+                heroStage(
+                    containerWidth: proxy.size.width,
+                    stageHeight: stageHeight,
+                    phonographSize: phonographSize
+                )
+
+                bottomControls
+                    .padding(.bottom, layout.controlsBottomPadding)
+                    .readHeight { controlsHeight = $0 }
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    private func heroStage(
+        containerWidth: CGFloat,
+        stageHeight: CGFloat,
+        phonographSize: CGFloat
+    ) -> some View {
+        let actionFootprint = max(
+            layout.sideActionsWidth + layout.heroActionSpacing - layout.sideActionsOverlap,
+            0
+        )
+        let heroGroupWidth = min(
+            containerWidth,
+            phonographSize + actionFootprint
+        )
+        let phonographHeight = layout.phonographHeight(for: phonographSize)
+
+        return VStack(spacing: layout.heroStackSpacing) {
+            ZStack(alignment: .leading) {
+                PhonographView(
+                    coverImage: coverImage,
+                    isPlaying: isPlaying
+                )
+                .frame(
+                    width: phonographSize,
+                    height: phonographHeight
+                )
+                .drawingGroup()
+
+                SideQuickActionsView(
+                    isFavorite: isFavorite,
+                    onFavorite: onFavorite,
+                    onList: onList,
+                    onTheme: onTheme
+                )
+                .frame(width: layout.sideActionsWidth)
+                .frame(width: heroGroupWidth, alignment: .trailing)
+            }
+            .frame(width: heroGroupWidth, height: phonographHeight, alignment: .leading)
+
+            AudioVisualizerView(isPlaying: isPlaying)
+                .frame(width: layout.visualizerWidth(for: heroGroupWidth))
+        }
+        .frame(width: heroGroupWidth, alignment: .center)
+        .frame(width: containerWidth, height: stageHeight, alignment: .center)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+    }
+
+    private var bottomControls: some View {
+        PlayerMetadataControlsGroup(
+            metadata: metadata,
+            cachedLyrics: cachedLyrics,
+            currentTime: currentTime,
+            duration: duration,
+            isAutoFetchingLyrics: isAutoFetchingLyrics,
+            isPlaying: isPlaying,
+            isFavorite: isFavorite,
+            playbackMode: playbackMode,
+            showsLyricsPreview: showsLyricsPreview,
+            maxTextWidth: layout.metadataWidth,
+            onSeek: onSeek,
+            onFavorite: onFavorite,
+            onPrevious: onPrevious,
+            onTogglePlayback: onTogglePlayback,
+            onNext: onNext,
+            onTogglePlaybackMode: onTogglePlaybackMode
+        )
+    }
+}
+
+private struct PlayerMetadataControlsGroup: View {
+    let metadata: PlayerDisplayMetadata
+    let cachedLyrics: CachedLyrics?
+    let currentTime: Double
+    let duration: Double
+    let isAutoFetchingLyrics: Bool
+    let isPlaying: Bool
+    let isFavorite: Bool
+    let playbackMode: PlaybackMode
+    let showsLyricsPreview: Bool
+    let maxTextWidth: CGFloat
+    let onSeek: (Double) -> Void
+    let onFavorite: () -> Void
+    let onPrevious: () -> Void
+    let onTogglePlayback: () -> Void
+    let onNext: () -> Void
+    let onTogglePlaybackMode: () -> Void
+
+    private var groupSpacing: CGFloat {
+        7
+    }
+
+    var body: some View {
+        VStack(spacing: groupSpacing) {
+            VStack(spacing: 5) {
+                Text(metadata.title)
+                    .font(.title3.weight(.semibold))
+                    .foregroundStyle(XYStyle.text)
+                    .multilineTextAlignment(.center)
+                    .lineLimit(2)
+                    .frame(maxWidth: maxTextWidth)
+
+                Text([metadata.artist.nilIfBlank, metadata.albumLine.nilIfBlank].compactMap { $0 }.joined(separator: " · "))
+                    .font(.callout.weight(.medium))
+                    .foregroundStyle(XYStyle.muted)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.82)
+                    .frame(maxWidth: maxTextWidth)
+
+                if metadata.isFromMusicVault {
+                    Text(metadata.detailLine)
+                        .font(.caption2.weight(.semibold))
+                        .foregroundStyle(XYStyle.accent.opacity(0.92))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.82)
+                        .frame(maxWidth: maxTextWidth)
+                }
+            }
+
+            if showsLyricsPreview {
+                LyricsPreviewView(
+                    cachedLyrics: cachedLyrics,
+                    currentTime: currentTime,
+                    isLoading: cachedLyrics == nil && isAutoFetchingLyrics
+                )
+                .frame(height: 38)
+                .clipped()
+            }
+
+            ProgressSliderView(
+                currentTime: currentTime,
+                duration: duration,
+                onSeek: onSeek
+            )
+
+            PlayerControlsView(
+                isPlaying: isPlaying,
+                isFavorite: isFavorite,
+                playbackMode: playbackMode,
+                onFavorite: onFavorite,
+                onPrevious: onPrevious,
+                onTogglePlayback: onTogglePlayback,
+                onNext: onNext,
+                onTogglePlaybackMode: onTogglePlaybackMode
+            )
+        }
+        .frame(maxWidth: .infinity)
+    }
+}
+
+/// 左栏：留声机 + 歌曲信息 + 进度条 + 播放控件，作为整体在可用高度内垂直居中。
+/// 唱片尺寸根据可用空间计算——优先放大但不挤压文字与底部控件。
+private struct CoverPlayerColumn: View {
+    let song: Song
+    let coverImage: UIImage?
+    let isPlaying: Bool
+    let isFavorite: Bool
+    let playbackMode: PlaybackMode
+    let currentTime: Double
+    let duration: Double
+    let displayMetadata: PlayerDisplayMetadata
+    let onFavorite: () -> Void
+    let onList: () -> Void
+    let onTheme: () -> Void
+    let onSeek: (Double) -> Void
+    let onPrevious: () -> Void
+    let onTogglePlayback: () -> Void
+    let onNext: () -> Void
+    let onTogglePlaybackMode: () -> Void
+    let availableSize: CGSize
+
+    var body: some View {
+        let layout = PlayerColumnLayout(
+            availableSize: availableSize,
+            style: .regular
+        )
+
+        LayeredCoverPlayerSurface(
+            coverImage: coverImage,
+            isPlaying: isPlaying,
+            metadata: displayMetadata,
+            cachedLyrics: nil,
+            currentTime: currentTime,
+            duration: duration,
+            isAutoFetchingLyrics: false,
+            isFavorite: isFavorite,
+            playbackMode: playbackMode,
+            showsLyricsPreview: false,
+            layout: layout,
+            onSeek: onSeek,
+            onFavorite: onFavorite,
+            onList: onList,
+            onTheme: onTheme,
+            onPrevious: onPrevious,
+            onTogglePlayback: onTogglePlayback,
+            onNext: onNext,
+            onTogglePlaybackMode: onTogglePlaybackMode
+        )
+    }
+}
+
+// MARK: - Lyrics Column
+
+/// 右栏：歌词展示区域。有歌词时填满可用空间；无歌词时居中显示空状态卡。
+private struct LyricsColumn: View {
+    let song: Song
+    let cachedLyrics: CachedLyrics?
+    let currentTime: TimeInterval
+    let playbackDuration: TimeInterval
+    let isPlaying: Bool
+    let isAutoFetchingLyrics: Bool
+    let onSeek: (Double) -> Void
+
+    @State private var isSearchPresented = false
+    @State private var isDeleteConfirmationPresented = false
+    @State private var autoScrollEnabled = true
+    @State private var resumeAutoScrollTask: Task<Void, Never>?
+
+    private var parsedLrcLines: [LyricLine]? {
+        makeParsedLrcLines(from: cachedLyrics)
+    }
+
+    private var currentLyricLineIndex: Int? {
+        makeCurrentLyricLineIndex(in: parsedLrcLines, currentTime: currentTime)
+    }
+
+    private var lyricsState: LyricsDisplayState {
+        if let cachedLyrics {
+            let badgePrefix = cachedLyrics.source == .musicVault ? "星语音库" : "历史缓存"
+            return LyricsDisplayState(
+                text: cachedLyrics.displayText,
+                badge: cachedLyrics.lyricType == .lrc ? "\(badgePrefix) · LRC" : badgePrefix,
+                isInstrumental: cachedLyrics.lyricType == .instrumental
+            )
+        }
+        if let mediaLyrics = mediaLibraryLyrics(for: song) {
+            return LyricsDisplayState(text: mediaLyrics, badge: "媒体库歌词", isInstrumental: false)
+        }
+        if let songLyrics = song.lyrics?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfBlank {
+            return LyricsDisplayState(text: songLyrics, badge: "内置歌词", isInstrumental: false)
+        }
+        return LyricsDisplayState(text: nil, badge: nil, isInstrumental: false)
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            // 顶栏：歌词来源标签
+            HStack {
+                if let badge = lyricsState.badge {
+                    LyricsBadgeView(text: badge)
+                }
+                Spacer()
+                Menu {
+                    Button(cachedLyrics == nil ? "查找歌词" : "重新查找", systemImage: "magnifyingglass") {
+                        isSearchPresented = true
+                    }
+                    if cachedLyrics != nil {
+                        Button("删除缓存歌词", systemImage: "trash", role: .destructive) {
+                            isDeleteConfirmationPresented = true
+                        }
+                    }
+                } label: {
+                    Image(systemName: "ellipsis.circle")
+                        .font(.title3.weight(.semibold))
+                        .foregroundStyle(XYStyle.text)
+                        .frame(width: 36, height: 36)
+                        .background(XYStyle.controlBackground, in: Circle())
+                }
+                .accessibilityLabel(cachedLyrics == nil ? "查找歌词" : "歌词操作")
+            }
+            .padding(.bottom, 10)
+
+            // 歌词内容区域
+            if let lrcLines = parsedLrcLines {
+                lrcScrollArea(lrcLines)
+            } else if let text = lyricsState.text {
+                plainLyricsArea(text)
+            } else {
+                noLyricsArea
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .padding(.horizontal, 4)
+        .sheet(isPresented: $isSearchPresented) {
+            LyricsSearchSheet(
+                song: song,
+                playbackDuration: playbackDuration,
+                onSave: { _ in isSearchPresented = false }
+            )
+        }
+        .confirmationDialog(
+            "删除这首歌的本地缓存歌词？",
+            isPresented: $isDeleteConfirmationPresented,
+            titleVisibility: .visible
+        ) {
+            Button("删除缓存歌词", role: .destructive) {
+                LyricsCacheStore.shared.deleteLyrics(for: song.id)
+            }
+            Button("取消", role: .cancel) {}
+        } message: {
+            Text("只会删除 App 内的歌词缓存，不影响歌曲文件、媒体库或播放状态。")
+        }
+    }
+
+    // MARK: LRC 滚动区
+
+    private func lrcScrollArea(_ lines: [LyricLine]) -> some View {
+        ScrollViewReader { proxy in
+            ScrollView {
+                VStack(alignment: .leading, spacing: 0) {
+                    Color.clear
+                        .frame(height: 1)
+                        .id("lyricsTop")
+
+                    LrcLyricsTimelineView(
+                        lines: lines,
+                        currentIndex: currentLyricLineIndex,
+                        displayStyle: .spacious,
+                        onLineTap: { line in
+                            resumeAutoScrollImmediately()
+                            onSeek(line.time)
+                            withAnimation(.easeInOut(duration: 0.22)) {
+                                proxy.scrollTo(lyricLineScrollID(line.index), anchor: .center)
+                            }
+                        }
+                    )
+                }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 12)
+            }
+            .onAppear {
+                if let currentLyricLineIndex {
+                    proxy.scrollTo(lyricLineScrollID(currentLyricLineIndex), anchor: .center)
+                } else {
+                    proxy.scrollTo("lyricsTop", anchor: .top)
+                }
+            }
+            .onChange(of: song.id) { _, _ in
+                resumeAutoScrollImmediately()
+                proxy.scrollTo("lyricsTop", anchor: .top)
+            }
+            .onChange(of: currentLyricLineIndex) { _, newValue in
+                guard autoScrollEnabled, let newValue else { return }
+                withAnimation(.easeInOut(duration: 0.24)) {
+                    proxy.scrollTo(lyricLineScrollID(newValue), anchor: .center)
+                }
+            }
+            .simultaneousGesture(
+                DragGesture(minimumDistance: 6)
+                    .onChanged { _ in suspendAutoScrollTemporarily() }
+                    .onEnded { _ in scheduleAutoScrollResume() }
+            )
+        }
+        .frame(maxHeight: .infinity)
+    }
+
+    // MARK: 纯文本歌词区
+
+    private func plainLyricsArea(_ text: String) -> some View {
+        ScrollView {
+            PlainLyricsTextView(
+                text: text,
+                isInstrumental: lyricsState.isInstrumental,
+                displayStyle: .spacious
+            )
+            .padding(.horizontal, 12)
+            .padding(.vertical, 12)
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .frame(maxHeight: .infinity)
+    }
+
+    // MARK: 无歌词状态
+
+    private var noLyricsArea: some View {
+        NoLyricsView(
+            song: song,
+            isAutoFetchingLyrics: isAutoFetchingLyrics
+        ) {
+            isSearchPresented = true
+        }
+    }
+
+    // MARK: 自动滚动控制
+
+    private func suspendAutoScrollTemporarily() {
+        autoScrollEnabled = false
+        resumeAutoScrollTask?.cancel()
+    }
+
+    private func scheduleAutoScrollResume() {
+        resumeAutoScrollTask?.cancel()
+        resumeAutoScrollTask = Task {
+            try? await Task.sleep(nanoseconds: 3_000_000_000)
+            guard !Task.isCancelled else { return }
+            await MainActor.run { autoScrollEnabled = true }
+        }
+    }
+
+    private func resumeAutoScrollImmediately() {
+        resumeAutoScrollTask?.cancel()
+        resumeAutoScrollTask = nil
+        autoScrollEnabled = true
+    }
+
+    private func mediaLibraryLyrics(for song: Song) -> String? {
+        guard song.sourceType == .mediaLibrary,
+              let persistentID = UInt64(song.id) else { return nil }
+        let predicate = MPMediaPropertyPredicate(
+            value: NSNumber(value: persistentID),
+            forProperty: MPMediaItemPropertyPersistentID
+        )
+        let query = MPMediaQuery.songs()
+        query.addFilterPredicate(predicate)
+        return query.items?.first?.lyrics?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfBlank
     }
 }
 
@@ -568,7 +1291,7 @@ struct LyricsPageView: View {
                         .font(.title3.weight(.semibold))
                         .foregroundStyle(XYStyle.text)
                         .frame(width: 36, height: 36)
-                        .background(Color.white.opacity(0.10), in: Circle())
+                        .background(XYStyle.controlBackground, in: Circle())
                 }
                 .accessibilityLabel(cachedLyrics == nil ? "查找歌词" : "歌词操作")
             }
@@ -840,7 +1563,7 @@ private struct PlainLyricsTextView: View {
     var body: some View {
         Text(text)
             .font(textFont)
-            .foregroundStyle(Color.white.opacity(textOpacity))
+            .foregroundStyle(XYStyle.lyricsDimmed)
             .lineSpacing(displayStyle == .spacious ? 18 : 8)
             .multilineTextAlignment(.leading)
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -903,7 +1626,7 @@ private struct LrcLyricLineView: View {
             return XYStyle.accent
         }
 
-        return Color.white.opacity(displayStyle == .spacious ? 0.38 : 0.56)
+        return XYStyle.lyricsDimmed
     }
 
     private var verticalPadding: CGFloat {
@@ -964,7 +1687,7 @@ private struct LyricsMiniControlBar: View {
                 GeometryReader { proxy in
                     ZStack(alignment: .leading) {
                         Capsule()
-                            .fill(Color.white.opacity(0.14))
+                            .fill(XYStyle.controlBackground)
                             .frame(height: 3)
 
                         Capsule()
@@ -1005,12 +1728,12 @@ private struct LyricsMiniControlBar: View {
         .padding(.horizontal, 14)
         .padding(.vertical, 12)
         .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
-        .background(Color.black.opacity(0.20), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .background(XYStyle.controlBackground, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
         .overlay {
             RoundedRectangle(cornerRadius: 18, style: .continuous)
                 .stroke(XYStyle.line.opacity(0.9), lineWidth: 1)
         }
-        .shadow(color: Color.black.opacity(0.20), radius: 18, y: 8)
+        .shadow(color: XYStyle.controlBackground, radius: 18, y: 8)
     }
 
     private func miniButton(systemImage: String, action: @escaping () -> Void) -> some View {
@@ -1019,9 +1742,9 @@ private struct LyricsMiniControlBar: View {
                 .font(.subheadline.weight(.semibold))
                 .foregroundStyle(XYStyle.text)
                 .frame(width: 34, height: 34)
-                .background(Color.white.opacity(0.09), in: Circle())
+                .background(XYStyle.controlBackground, in: Circle())
                 .overlay {
-                    Circle().stroke(Color.white.opacity(0.10), lineWidth: 1)
+                    Circle().stroke(XYStyle.controlBackground, lineWidth: 1)
                 }
         }
         .buttonStyle(.plain)
@@ -1048,7 +1771,7 @@ private struct NoLyricsView: View {
             VStack(spacing: 4) {
                 Text(song.title)
                     .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(Color.white.opacity(0.86))
+                    .foregroundStyle(XYStyle.text)
                     .lineLimit(2)
                     .multilineTextAlignment(.center)
                 Text(song.artist)
@@ -1070,7 +1793,7 @@ private struct NoLyricsView: View {
 
             Text(isAutoFetchingLyrics ? "如果没有匹配结果，可以稍后手动修改歌曲名或歌手再搜索。" : "这首歌还没有歌词，但旋律已经在路上了。")
                 .font(.footnote)
-                .foregroundStyle(Color.white.opacity(0.66))
+                .foregroundStyle(XYStyle.text)
                 .multilineTextAlignment(.center)
                 .lineSpacing(4)
                 .padding(.top, 2)
@@ -1199,11 +1922,11 @@ private struct LyricsSearchSheet: View {
         if let message {
             Text(message)
                 .font(.footnote)
-                .foregroundStyle(Color.white.opacity(0.72))
+                .foregroundStyle(XYStyle.text)
                 .lineSpacing(3)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(12)
-                .background(Color.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 8))
+                .background(XYStyle.controlBackground, in: RoundedRectangle(cornerRadius: 8))
         }
     }
 
@@ -1219,7 +1942,7 @@ private struct LyricsSearchSheet: View {
                 .foregroundStyle(XYStyle.text)
                 .padding(.horizontal, 12)
                 .padding(.vertical, 10)
-                .background(Color.white.opacity(0.09), in: RoundedRectangle(cornerRadius: 8))
+                .background(XYStyle.controlBackground, in: RoundedRectangle(cornerRadius: 8))
         }
     }
 
@@ -1307,7 +2030,7 @@ struct PlayerQuickActionsView: View {
         .padding(.vertical, placement == .vertical ? 6 : 5)
         .padding(.horizontal, placement == .vertical ? 5 : 8)
         .fixedSize()
-        .background(Color.black.opacity(0.14), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .background(XYStyle.controlBackground, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
     }
 
     @ViewBuilder
@@ -1315,7 +2038,7 @@ struct PlayerQuickActionsView: View {
         quickButton(
             title: "收藏",
             systemImage: isFavorite ? "heart.fill" : "heart",
-            color: isFavorite ? XYStyle.danger : Color.white.opacity(0.72),
+            color: isFavorite ? XYStyle.danger : XYStyle.text,
             action: onFavorite
         )
 
@@ -1337,7 +2060,7 @@ struct PlayerQuickActionsView: View {
         quickButton(
             title: "音效",
             systemImage: "waveform",
-            color: Color.white.opacity(0.72),
+            color: XYStyle.text,
             action: {}
         )
 
@@ -1355,7 +2078,7 @@ struct PlayerQuickActionsView: View {
 
     private var quickDivider: some View {
         Rectangle()
-            .fill(Color.white.opacity(0.07))
+            .fill(XYStyle.controlBackground)
             .frame(width: 28, height: 1)
     }
 
@@ -1408,7 +2131,7 @@ struct LegacySideQuickActionsView: View {
             SideQuickActionButton(
                 title: "收藏",
                 systemImage: isFavorite ? "heart.fill" : "heart",
-                color: isFavorite ? XYStyle.danger : Color.white.opacity(0.72),
+                color: isFavorite ? XYStyle.danger : XYStyle.text,
                 action: onFavorite
             )
 
@@ -1426,7 +2149,7 @@ struct LegacySideQuickActionsView: View {
             SideQuickActionButton(
                 title: "音效",
                 systemImage: "waveform",
-                color: Color.white.opacity(0.72),
+                color: XYStyle.text,
                 action: {}
             )
 
@@ -1442,10 +2165,10 @@ struct LegacySideQuickActionsView: View {
         .padding(.vertical, 6)
         .padding(.horizontal, 5)
         .fixedSize()
-        .background(Color.black.opacity(0.18), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .background(XYStyle.controlBackground, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
         .overlay {
             RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .stroke(Color.white.opacity(0.10), lineWidth: 1)
+                .stroke(XYStyle.controlBackground, lineWidth: 1)
         }
     }
 }
@@ -1453,7 +2176,7 @@ struct LegacySideQuickActionsView: View {
 struct SideActionDivider: View {
     var body: some View {
         Rectangle()
-            .fill(Color.white.opacity(0.07))
+            .fill(XYStyle.controlBackground)
             .frame(width: 28, height: 1)
     }
 }
@@ -1520,7 +2243,7 @@ struct LyricsPreviewView: View {
             ForEach(displayLines) { line in
                 Text(line.text)
                     .font(line.isCurrent ? .subheadline.weight(.semibold) : .subheadline)
-                    .foregroundStyle(line.isCurrent ? XYStyle.accent : Color.white.opacity(0.46))
+                    .foregroundStyle(line.isCurrent ? XYStyle.accent : XYStyle.lyricsDimmed)
                     .lineLimit(1)
                     .frame(maxWidth: .infinity)
             }
