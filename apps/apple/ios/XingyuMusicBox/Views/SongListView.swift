@@ -239,7 +239,7 @@ struct SongListView: View {
             .font(.subheadline)
             .padding(.horizontal, 14)
             .frame(height: 40)
-            .background(Color.black.opacity(0.22), in: Capsule())
+            .background(XYStyle.controlBackground, in: Capsule())
             .overlay {
                 Capsule().stroke(XYStyle.line, lineWidth: 1)
             }
@@ -360,7 +360,7 @@ struct SongListView: View {
                     Text("当前播放")
                         .font(.caption.weight(.semibold))
                 }
-                .foregroundStyle(Color.black.opacity(0.82))
+                .foregroundStyle(XYStyle.text)
                 .padding(.horizontal, 12)
                 .frame(height: 36)
                 .background(XYStyle.accent, in: Capsule())
@@ -511,7 +511,7 @@ private struct ArtistGroupRowView: View {
 
             Image(systemName: "chevron.right")
                 .font(.caption.weight(.bold))
-                .foregroundStyle(Color.white.opacity(0.38))
+                .foregroundStyle(XYStyle.muted)
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 10)
@@ -545,7 +545,7 @@ private struct AlbumGroupRowView: View {
 
             Image(systemName: "chevron.right")
                 .font(.caption.weight(.bold))
-                .foregroundStyle(Color.white.opacity(0.38))
+                .foregroundStyle(XYStyle.muted)
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 10)
@@ -782,7 +782,7 @@ struct SongRowView: View {
 
             Text(song.duration)
                 .font(.caption.monospacedDigit())
-                .foregroundStyle(Color.white.opacity(0.62))
+                .foregroundStyle(XYStyle.text)
                 .frame(width: 42, alignment: .trailing)
 
             if isCurrent {

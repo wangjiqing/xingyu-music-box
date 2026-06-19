@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct MiniPlayerView: View {
+    @EnvironmentObject private var themeManager: ThemeManager
     @EnvironmentObject private var viewModel: PlayerViewModel
     var onTap: () -> Void = {}
 
@@ -44,7 +45,7 @@ struct MiniPlayerView: View {
             .padding(.vertical, 10)
             .background(
                 LinearGradient(
-                    colors: [Color(red: 0.03, green: 0.10, blue: 0.14).opacity(0.96), Color.black.opacity(0.94)],
+                    colors: [XYStyle.panel, XYStyle.panelDark],
                     startPoint: .top,
                     endPoint: .bottom
                 ),
@@ -63,5 +64,6 @@ struct MiniPlayerView: View {
 
 #Preview {
     MiniPlayerView()
+        .environmentObject(ThemeManager())
         .environmentObject(PlayerViewModel())
 }

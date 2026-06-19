@@ -39,7 +39,15 @@ enum MusicVaultApiError: LocalizedError {
 }
 
 final class MusicVaultApiClient {
+    #if os(macOS)
+    static private(set) var shared = MusicVaultApiClient()
+
+    static func reloadSharedConfiguration() {
+        shared = MusicVaultApiClient()
+    }
+    #else
     static let shared = MusicVaultApiClient()
+    #endif
 
     private let config: MusicVaultConfig
     private let session: URLSession
@@ -104,6 +112,10 @@ final class MusicVaultApiClient {
 
     func fetchArtworkMeta(trackId: Int64) async throws -> MusicVaultArtworkMeta {
         try await artworkMeta(trackId: trackId)
+    }
+
+    func audioStreamRequest(trackId: Int64) throws -> URLRequest {
+        try makeRequest(path: "/tracks/\(trackId)/audio", acceptHeader: "audio/*,*/*")
     }
 
     func matchTrack(query: MusicVaultTrackMatchQuery) async throws -> MusicVaultTrackMatch {
@@ -192,7 +204,11 @@ final class MusicVaultApiClient {
         var request = URLRequest(url: url)
         request.httpMethod = "GET"
         request.setValue(acceptHeader, forHTTPHeaderField: "Accept")
+        #if os(macOS)
+        request.setValue("XingyuMusicBox macOS", forHTTPHeaderField: "User-Agent")
+        #else
         request.setValue("XingyuMusicBox iOS", forHTTPHeaderField: "User-Agent")
+        #endif
         guard let credential = config.credential else {
             throw MusicVaultApiError.signingFailed(OpenApiSigningError.missingCredential)
         }

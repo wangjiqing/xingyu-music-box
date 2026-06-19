@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct GlassCardModifier: ViewModifier {
+    @EnvironmentObject private var themeManager: ThemeManager
     let cornerRadius: CGFloat
 
     func body(content: Content) -> some View {
@@ -8,8 +9,8 @@ struct GlassCardModifier: ViewModifier {
             .background(
                 LinearGradient(
                     colors: [
-                        Color.white.opacity(0.10),
                         XYStyle.panel,
+                        XYStyle.panelDark,
                         XYStyle.panelDark
                     ],
                     startPoint: .topLeading,

@@ -41,6 +41,23 @@
 		010000000000000000000025 /* MusicVaultLyricsService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000025 /* MusicVaultLyricsService.swift */; };
 		010000000000000000000026 /* MusicVaultArtworkService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000026 /* MusicVaultArtworkService.swift */; };
 		010000000000000000000027 /* MusicVaultMetadataService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000027 /* MusicVaultMetadataService.swift */; };
+		010000000000000000000031 /* PhonographView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000031 /* PhonographView.swift */; };
+		010000000000000000000032 /* NowPlaying in Resources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000032 /* NowPlaying */; };
+		011000000000000000000001 /* XingyuMusicBoxMacApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 021000000000000000000001 /* XingyuMusicBoxMacApp.swift */; };
+		011000000000000000000002 /* MacPlayerViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 021000000000000000000002 /* MacPlayerViewModel.swift */; };
+		011000000000000000000003 /* MacRootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 021000000000000000000003 /* MacRootView.swift */; };
+		011000000000000000000004 /* MusicVaultDTOs.swift in Sources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000021 /* MusicVaultDTOs.swift */; };
+		011000000000000000000005 /* MusicVaultApiClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000022 /* MusicVaultApiClient.swift */; };
+		011000000000000000000006 /* MusicVaultConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000024 /* MusicVaultConfig.swift */; };
+		011000000000000000000007 /* OpenApiHmacSigner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000029 /* OpenApiHmacSigner.swift */; };
+		011000000000000000000008 /* AudioSource.swift in Sources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000002 /* AudioSource.swift */; };
+		011000000000000000000009 /* Song.swift in Sources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000003 /* Song.swift */; };
+		01100000000000000000000A /* LRCParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000020 /* LRCParser.swift */; };
+		01100000000000000000000B /* MacTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 021000000000000000000008 /* MacTheme.swift */; };
+		01100000000000000000000C /* Themes in Resources */ = {isa = PBXBuildFile; fileRef = 021000000000000000000009 /* Themes */; };
+		01100000000000000000000D /* NowPlaying in Resources */ = {isa = PBXBuildFile; fileRef = 02100000000000000000000A /* NowPlaying */; };
+		01100000000000000000000E /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 02100000000000000000000B /* Assets.xcassets */; };
+		01100000000000000000000F /* MacAppIcon.icns in Resources */ = {isa = PBXBuildFile; fileRef = 02100000000000000000000F /* MacAppIcon.icns */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -80,12 +97,33 @@
 		020000000000000000000025 /* MusicVaultLyricsService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MusicVaultLyricsService.swift; sourceTree = "<group>"; };
 		020000000000000000000026 /* MusicVaultArtworkService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MusicVaultArtworkService.swift; sourceTree = "<group>"; };
 		020000000000000000000027 /* MusicVaultMetadataService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MusicVaultMetadataService.swift; sourceTree = "<group>"; };
+		020000000000000000000031 /* PhonographView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhonographView.swift; sourceTree = "<group>"; };
+		020000000000000000000032 /* NowPlaying */ = {isa = PBXFileReference; lastKnownFileType = folder; path = NowPlaying; sourceTree = "<group>"; };
 		020000000000000000000028 /* IPadRootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IPadRootView.swift; sourceTree = "<group>"; };
 		280429532FA78D6800B16AD9 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		021000000000000000000001 /* XingyuMusicBoxMacApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = XingyuMusicBoxMacApp.swift; sourceTree = "<group>"; };
+		021000000000000000000002 /* MacPlayerViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MacPlayerViewModel.swift; sourceTree = "<group>"; };
+		021000000000000000000003 /* MacRootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MacRootView.swift; sourceTree = "<group>"; };
+		021000000000000000000004 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		021000000000000000000005 /* OpenApiConfig.example.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = OpenApiConfig.example.plist; sourceTree = "<group>"; };
+		021000000000000000000006 /* XingyuMusicBoxMac.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = XingyuMusicBoxMac.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		021000000000000000000007 /* XingyuMusicBoxMac.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = XingyuMusicBoxMac.entitlements; sourceTree = "<group>"; };
+		021000000000000000000008 /* MacTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MacTheme.swift; sourceTree = "<group>"; };
+		021000000000000000000009 /* Themes */ = {isa = PBXFileReference; lastKnownFileType = folder; path = Themes; sourceTree = "<group>"; };
+		02100000000000000000000A /* NowPlaying */ = {isa = PBXFileReference; lastKnownFileType = folder; path = NowPlaying; sourceTree = "<group>"; };
+		02100000000000000000000B /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		02100000000000000000000F /* MacAppIcon.icns */ = {isa = PBXFileReference; lastKnownFileType = image.icns; path = MacAppIcon.icns; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
 		030000000000000000000001 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		031000000000000000000001 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -99,6 +137,7 @@
 			isa = PBXGroup;
 			children = (
 				040000000000000000000002 /* XingyuMusicBox */,
+				041000000000000000000001 /* XingyuMusicBoxMac */,
 				040000000000000000000009 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -182,6 +221,7 @@
 				02000000000000000000000E /* PlayerControlsView.swift */,
 				02000000000000000000000F /* ProgressSliderView.swift */,
 				020000000000000000000010 /* GlassCardModifier.swift */,
+				020000000000000000000031 /* PhonographView.swift */,
 			);
 			path = Components;
 			sourceTree = "<group>";
@@ -191,6 +231,7 @@
 			children = (
 				02000000000000000000002A /* OpenApiConfig.example.plist */,
 				02000000000000000000002B /* OpenApiConfig.plist */,
+				020000000000000000000032 /* NowPlaying */,
 			);
 			path = Resources;
 			sourceTree = "<group>";
@@ -199,8 +240,52 @@
 			isa = PBXGroup;
 			children = (
 				020000000000000000000013 /* XingyuMusicBox.app */,
+				021000000000000000000006 /* XingyuMusicBoxMac.app */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		041000000000000000000001 /* XingyuMusicBoxMac */ = {
+			isa = PBXGroup;
+			children = (
+				021000000000000000000004 /* Info.plist */,
+					021000000000000000000007 /* XingyuMusicBoxMac.entitlements */,
+					02100000000000000000000B /* Assets.xcassets */,
+					021000000000000000000001 /* XingyuMusicBoxMacApp.swift */,
+					021000000000000000000008 /* MacTheme.swift */,
+					041000000000000000000002 /* ViewModels */,
+				041000000000000000000003 /* Views */,
+				041000000000000000000004 /* Resources */,
+			);
+			name = XingyuMusicBoxMac;
+			path = ../macos/XingyuMusicBoxMac;
+			sourceTree = "<group>";
+		};
+		041000000000000000000002 /* ViewModels */ = {
+			isa = PBXGroup;
+			children = (
+				021000000000000000000002 /* MacPlayerViewModel.swift */,
+			);
+			path = ViewModels;
+			sourceTree = "<group>";
+		};
+		041000000000000000000003 /* Views */ = {
+			isa = PBXGroup;
+			children = (
+				021000000000000000000003 /* MacRootView.swift */,
+			);
+			path = Views;
+			sourceTree = "<group>";
+		};
+		041000000000000000000004 /* Resources */ = {
+			isa = PBXGroup;
+				children = (
+					021000000000000000000005 /* OpenApiConfig.example.plist */,
+					02100000000000000000000F /* MacAppIcon.icns */,
+					021000000000000000000009 /* Themes */,
+					02100000000000000000000A /* NowPlaying */,
+				);
+			path = Resources;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -224,6 +309,24 @@
 			productReference = 020000000000000000000013 /* XingyuMusicBox.app */;
 			productType = "com.apple.product-type.application";
 		};
+		051000000000000000000001 /* XingyuMusicBoxMac */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 091000000000000000000001 /* Build configuration list for PBXNativeTarget "XingyuMusicBoxMac" */;
+			buildPhases = (
+				061000000000000000000001 /* Sources */,
+				031000000000000000000001 /* Frameworks */,
+				071000000000000000000001 /* Resources */,
+				071000000000000000000002 /* Copy Local OpenAPI Config */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = XingyuMusicBoxMac;
+			productName = XingyuMusicBoxMac;
+			productReference = 021000000000000000000006 /* XingyuMusicBoxMac.app */;
+			productType = "com.apple.product-type.application";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -235,6 +338,9 @@
 				LastUpgradeCheck = 1540;
 				TargetAttributes = {
 					050000000000000000000001 = {
+						CreatedOnToolsVersion = 15.4;
+					};
+					051000000000000000000001 = {
 						CreatedOnToolsVersion = 15.4;
 					};
 				};
@@ -253,6 +359,7 @@
 			projectRoot = "";
 			targets = (
 				050000000000000000000001 /* XingyuMusicBox */,
+				051000000000000000000001 /* XingyuMusicBoxMac */,
 			);
 		};
 /* End PBXProject section */
@@ -263,6 +370,17 @@
 			buildActionMask = 2147483647;
 			files = (
 				010000000000000000000012 /* Assets.xcassets in Resources */,
+				010000000000000000000032 /* NowPlaying in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		071000000000000000000001 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				01100000000000000000000E /* Assets.xcassets in Resources */,
+				01100000000000000000000C /* Themes in Resources */,
+				01100000000000000000000D /* NowPlaying in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -270,6 +388,26 @@
 
 /* Begin PBXShellScriptBuildPhase section */
 		070000000000000000000002 /* Copy Local OpenAPI Config */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+				"$(SRCROOT)/XingyuMusicBox/Resources/OpenApiConfig.plist",
+			);
+			name = "Copy Local OpenAPI Config";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+				"$(TARGET_BUILD_DIR)/$(UNLOCALIZED_RESOURCES_FOLDER_PATH)/OpenApiConfig.plist",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "CONFIG_PATH=\"${SRCROOT}/XingyuMusicBox/Resources/OpenApiConfig.plist\"\nDEST_PATH=\"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/OpenApiConfig.plist\"\nif [ -f \"$CONFIG_PATH\" ]; then\n  cp \"$CONFIG_PATH\" \"$DEST_PATH\"\nfi\n";
+		};
+		071000000000000000000002 /* Copy Local OpenAPI Config */ = {
 			isa = PBXShellScriptBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -312,6 +450,7 @@
 				01000000000000000000000E /* PlayerControlsView.swift in Sources */,
 				01000000000000000000000F /* ProgressSliderView.swift in Sources */,
 				010000000000000000000010 /* GlassCardModifier.swift in Sources */,
+				010000000000000000000031 /* PhonographView.swift in Sources */,
 				010000000000000000000011 /* AdaptiveRootView.swift in Sources */,
 				010000000000000000000014 /* PlaybackStateStore.swift in Sources */,
 				010000000000000000000016 /* RecentPlayStore.swift in Sources */,
@@ -329,6 +468,24 @@
 				010000000000000000000026 /* MusicVaultArtworkService.swift in Sources */,
 				010000000000000000000027 /* MusicVaultMetadataService.swift in Sources */,
 				010000000000000000000028 /* IPadRootView.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		061000000000000000000001 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				011000000000000000000001 /* XingyuMusicBoxMacApp.swift in Sources */,
+				01100000000000000000000B /* MacTheme.swift in Sources */,
+				011000000000000000000002 /* MacPlayerViewModel.swift in Sources */,
+				011000000000000000000003 /* MacRootView.swift in Sources */,
+				011000000000000000000008 /* AudioSource.swift in Sources */,
+				011000000000000000000009 /* Song.swift in Sources */,
+				01100000000000000000000A /* LRCParser.swift in Sources */,
+				011000000000000000000004 /* MusicVaultDTOs.swift in Sources */,
+				011000000000000000000005 /* MusicVaultApiClient.swift in Sources */,
+				011000000000000000000006 /* MusicVaultConfig.swift in Sources */,
+				011000000000000000000007 /* OpenApiHmacSigner.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -512,6 +669,71 @@
 			};
 			name = Release;
 		};
+		101000000000000000000001 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ARCHS = arm64;
+				CODE_SIGN_ENTITLEMENTS = ../macos/XingyuMusicBoxMac/XingyuMusicBoxMac.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 492XJU92ZC;
+				ENABLE_DEBUG_DYLIB = NO;
+				ENABLE_HARDENED_RUNTIME = NO;
+				ENABLE_PREVIEWS = NO;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
+				EXCLUDED_ARCHS = x86_64;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = ../macos/XingyuMusicBoxMac/Info.plist;
+				INFOPLIST_KEY_CFBundleName = "星语音乐盒";
+				INFOPLIST_KEY_CFBundleDisplayName = "星语音乐盒";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MARKETING_VERSION = 0.4.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.xingyu.musicbox.mac;
+				PRODUCT_NAME = "星语音乐盒";
+				SDKROOT = macosx;
+				SUPPORTED_PLATFORMS = macosx;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+			};
+			name = Debug;
+		};
+		101000000000000000000002 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ARCHS = arm64;
+				CODE_SIGN_ENTITLEMENTS = ../macos/XingyuMusicBoxMac/XingyuMusicBoxMac.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 492XJU92ZC;
+				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_PREVIEWS = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
+				EXCLUDED_ARCHS = x86_64;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = ../macos/XingyuMusicBoxMac/Info.plist;
+				INFOPLIST_KEY_CFBundleName = "星语音乐盒";
+				INFOPLIST_KEY_CFBundleDisplayName = "星语音乐盒";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MARKETING_VERSION = 0.4.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.xingyu.musicbox.mac;
+				PRODUCT_NAME = "星语音乐盒";
+				SDKROOT = macosx;
+				SUPPORTED_PLATFORMS = macosx;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -529,6 +751,15 @@
 			buildConfigurations = (
 				100000000000000000000003 /* Debug */,
 				100000000000000000000004 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		091000000000000000000001 /* Build configuration list for PBXNativeTarget "XingyuMusicBoxMac" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				101000000000000000000001 /* Debug */,
+				101000000000000000000002 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

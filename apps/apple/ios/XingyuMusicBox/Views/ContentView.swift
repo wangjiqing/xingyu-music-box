@@ -1,265 +1,249 @@
 import SwiftUI
+#if canImport(UIKit)
+import UIKit
+#endif
 
 enum AppTheme: String, CaseIterable, Codable, Identifiable {
-    case classic
-    case darkNight
-    case warmTape
-    case blueWalkman
-    case redPulse
-    case orangeGlow
-    case yellowVinyl
-    case greenTape
-    case cyanWave
-    case blueOcean
-    case purpleDream
+    case springDawn
+    case midsummerStarlight
+    case autumnVinyl
+    case winterMoonlight
 
     var id: String { rawValue }
 
     var displayName: String {
         switch self {
-        case .classic:
-            return "经典默认"
-        case .darkNight:
-            return "深色夜听"
-        case .warmTape:
-            return "暖黄磁带"
-        case .blueWalkman:
-            return "蓝色随身听"
-        case .redPulse:
-            return "红色脉冲"
-        case .orangeGlow:
-            return "橙色落日"
-        case .yellowVinyl:
-            return "黄色唱片"
-        case .greenTape:
-            return "绿色磁带"
-        case .cyanWave:
-            return "青色声波"
-        case .blueOcean:
-            return "蓝色海面"
-        case .purpleDream:
-            return "紫色梦境"
+        case .springDawn:
+            return "春日晨光"
+        case .midsummerStarlight:
+            return "仲夏星河"
+        case .autumnVinyl:
+            return "秋日唱片"
+        case .winterMoonlight:
+            return "冬夜雪境"
         }
     }
 
     var description: String {
         switch self {
-        case .classic:
-            return "延续星语音乐盒当前的复古蓝黑风格。"
-        case .darkNight:
-            return "更低亮度的夜间配色，适合睡前听歌。"
-        case .warmTape:
-            return "暖黄与棕色调，像旧磁带盒里的回忆。"
-        case .blueWalkman:
-            return "清爽蓝色调，轻快、明亮、随身听感。"
-        case .redPulse:
-            return "红色强调更醒目，适合热烈一点的歌单。"
-        case .orangeGlow:
-            return "橙色暖光，像傍晚车窗里的旋律。"
-        case .yellowVinyl:
-            return "明亮黄调，带一点老唱片的轻快感。"
-        case .greenTape:
-            return "绿色低饱和，安静、松弛、耐听。"
-        case .cyanWave:
-            return "青色声波感，清透但不刺眼。"
-        case .blueOcean:
-            return "更深一点的蓝色，像夜里的海面。"
-        case .purpleDream:
-            return "紫色氛围，适合慢歌和夜晚。"
+        case .springDawn:
+            return "1-3 月默认，清亮绿色与晨光暖色。"
+        case .midsummerStarlight:
+            return "4-6 月默认，浅蓝与星河水色。"
+        case .autumnVinyl:
+            return "7-9 月默认，唱片感橙棕与金色。"
+        case .winterMoonlight:
+            return "10-12 月默认，深蓝雪境与月光色。"
+        }
+    }
+
+    var resourceFolder: String {
+        switch self {
+        case .springDawn:
+            return "spring-dawn"
+        case .midsummerStarlight:
+            return "midsummer-starlight"
+        case .autumnVinyl:
+            return "autumn-vinyl"
+        case .winterMoonlight:
+            return "winter-moonlight"
         }
     }
 
     var backgroundTop: Color {
         switch self {
-        case .classic:
-            return Color(red: 0.03, green: 0.11, blue: 0.16)
-        case .darkNight:
-            return Color(red: 0.015, green: 0.018, blue: 0.032)
-        case .warmTape:
-            return Color(red: 0.22, green: 0.13, blue: 0.07)
-        case .blueWalkman:
-            return Color(red: 0.02, green: 0.15, blue: 0.26)
-        case .redPulse:
-            return Color(red: 0.22, green: 0.035, blue: 0.045)
-        case .orangeGlow:
-            return Color(red: 0.23, green: 0.095, blue: 0.025)
-        case .yellowVinyl:
-            return Color(red: 0.20, green: 0.155, blue: 0.035)
-        case .greenTape:
-            return Color(red: 0.025, green: 0.155, blue: 0.085)
-        case .cyanWave:
-            return Color(red: 0.020, green: 0.145, blue: 0.155)
-        case .blueOcean:
-            return Color(red: 0.018, green: 0.080, blue: 0.210)
-        case .purpleDream:
-            return Color(red: 0.115, green: 0.045, blue: 0.205)
+        case .springDawn:
+            return Color(red: 0.980, green: 0.988, blue: 0.969)
+        case .midsummerStarlight:
+            return Color(red: 0.965, green: 0.984, blue: 1.000)
+        case .autumnVinyl:
+            return Color(red: 1.000, green: 0.969, blue: 0.933)
+        case .winterMoonlight:
+            return Color(red: 0.039, green: 0.071, blue: 0.141)
         }
     }
 
     var backgroundBottom: Color {
         switch self {
-        case .classic:
-            return Color(red: 0.01, green: 0.02, blue: 0.03)
-        case .darkNight:
-            return Color(red: 0.002, green: 0.004, blue: 0.010)
-        case .warmTape:
-            return Color(red: 0.06, green: 0.035, blue: 0.020)
-        case .blueWalkman:
-            return Color(red: 0.004, green: 0.035, blue: 0.080)
-        case .redPulse:
-            return Color(red: 0.050, green: 0.010, blue: 0.014)
-        case .orangeGlow:
-            return Color(red: 0.060, green: 0.025, blue: 0.006)
-        case .yellowVinyl:
-            return Color(red: 0.050, green: 0.038, blue: 0.010)
-        case .greenTape:
-            return Color(red: 0.006, green: 0.040, blue: 0.023)
-        case .cyanWave:
-            return Color(red: 0.004, green: 0.045, blue: 0.052)
-        case .blueOcean:
-            return Color(red: 0.004, green: 0.018, blue: 0.065)
-        case .purpleDream:
-            return Color(red: 0.027, green: 0.010, blue: 0.055)
+        case .springDawn:
+            return Color(red: 0.745, green: 0.906, blue: 0.882)
+        case .midsummerStarlight:
+            return Color(red: 0.659, green: 0.902, blue: 0.882)
+        case .autumnVinyl:
+            return Color(red: 0.910, green: 0.635, blue: 0.298)
+        case .winterMoonlight:
+            return Color(red: 0.067, green: 0.133, blue: 0.227)
         }
     }
 
     var panel: Color {
         switch self {
-        case .classic:
-            return Color(red: 0.05, green: 0.15, blue: 0.21).opacity(0.82)
-        case .darkNight:
-            return Color(red: 0.035, green: 0.038, blue: 0.060).opacity(0.88)
-        case .warmTape:
-            return Color(red: 0.26, green: 0.16, blue: 0.08).opacity(0.84)
-        case .blueWalkman:
-            return Color(red: 0.035, green: 0.18, blue: 0.31).opacity(0.84)
-        case .redPulse:
-            return Color(red: 0.26, green: 0.055, blue: 0.065).opacity(0.84)
-        case .orangeGlow:
-            return Color(red: 0.27, green: 0.12, blue: 0.035).opacity(0.84)
-        case .yellowVinyl:
-            return Color(red: 0.24, green: 0.18, blue: 0.050).opacity(0.84)
-        case .greenTape:
-            return Color(red: 0.035, green: 0.18, blue: 0.095).opacity(0.84)
-        case .cyanWave:
-            return Color(red: 0.030, green: 0.17, blue: 0.18).opacity(0.84)
-        case .blueOcean:
-            return Color(red: 0.030, green: 0.105, blue: 0.245).opacity(0.84)
-        case .purpleDream:
-            return Color(red: 0.135, green: 0.060, blue: 0.245).opacity(0.84)
+        case .springDawn:
+            return Color.white.opacity(0.84)
+        case .midsummerStarlight:
+            return Color.white.opacity(0.80)
+        case .autumnVinyl:
+            return Color(red: 1.000, green: 0.945, blue: 0.882).opacity(0.86)
+        case .winterMoonlight:
+            return Color(red: 0.067, green: 0.133, blue: 0.227).opacity(0.88)
         }
     }
 
     var panelDark: Color {
         switch self {
-        case .classic:
-            return Color(red: 0.02, green: 0.06, blue: 0.09).opacity(0.92)
-        case .darkNight:
-            return Color(red: 0.010, green: 0.012, blue: 0.020).opacity(0.94)
-        case .warmTape:
-            return Color(red: 0.11, green: 0.065, blue: 0.035).opacity(0.94)
-        case .blueWalkman:
-            return Color(red: 0.010, green: 0.065, blue: 0.13).opacity(0.94)
-        case .redPulse:
-            return Color(red: 0.095, green: 0.018, blue: 0.025).opacity(0.94)
-        case .orangeGlow:
-            return Color(red: 0.110, green: 0.045, blue: 0.012).opacity(0.94)
-        case .yellowVinyl:
-            return Color(red: 0.095, green: 0.070, blue: 0.018).opacity(0.94)
-        case .greenTape:
-            return Color(red: 0.010, green: 0.075, blue: 0.040).opacity(0.94)
-        case .cyanWave:
-            return Color(red: 0.008, green: 0.070, blue: 0.078).opacity(0.94)
-        case .blueOcean:
-            return Color(red: 0.008, green: 0.040, blue: 0.120).opacity(0.94)
-        case .purpleDream:
-            return Color(red: 0.060, green: 0.025, blue: 0.115).opacity(0.94)
+        case .springDawn:
+            return Color(red: 0.886, green: 0.922, blue: 0.863).opacity(0.88)
+        case .midsummerStarlight:
+            return Color(red: 0.867, green: 0.918, blue: 0.961).opacity(0.88)
+        case .autumnVinyl:
+            return Color(red: 0.902, green: 0.839, blue: 0.765).opacity(0.90)
+        case .winterMoonlight:
+            return Color(red: 0.125, green: 0.184, blue: 0.290).opacity(0.94)
         }
     }
 
     var text: Color {
         switch self {
-        case .warmTape, .yellowVinyl, .orangeGlow:
-            return Color(red: 1.00, green: 0.92, blue: 0.78)
-        default:
-            return Color(red: 0.91, green: 0.96, blue: 1.0)
+        case .springDawn:
+            return Color(red: 0.141, green: 0.227, blue: 0.196)
+        case .midsummerStarlight:
+            return Color(red: 0.149, green: 0.220, blue: 0.302)
+        case .autumnVinyl:
+            return Color(red: 0.169, green: 0.114, blue: 0.078)
+        case .winterMoonlight:
+            return Color(red: 0.910, green: 0.941, blue: 1.000)
         }
     }
 
     var muted: Color {
         switch self {
-        case .classic:
-            return Color(red: 0.56, green: 0.65, blue: 0.72)
-        case .darkNight:
-            return Color(red: 0.54, green: 0.56, blue: 0.66)
-        case .warmTape:
-            return Color(red: 0.78, green: 0.64, blue: 0.46)
-        case .blueWalkman:
-            return Color(red: 0.58, green: 0.72, blue: 0.86)
-        case .redPulse:
-            return Color(red: 0.80, green: 0.55, blue: 0.58)
-        case .orangeGlow:
-            return Color(red: 0.82, green: 0.62, blue: 0.45)
-        case .yellowVinyl:
-            return Color(red: 0.82, green: 0.72, blue: 0.48)
-        case .greenTape:
-            return Color(red: 0.55, green: 0.74, blue: 0.62)
-        case .cyanWave:
-            return Color(red: 0.55, green: 0.75, blue: 0.78)
-        case .blueOcean:
-            return Color(red: 0.57, green: 0.68, blue: 0.88)
-        case .purpleDream:
-            return Color(red: 0.72, green: 0.60, blue: 0.88)
+        case .springDawn:
+            return Color(red: 0.424, green: 0.498, blue: 0.451)
+        case .midsummerStarlight:
+            return Color(red: 0.431, green: 0.506, blue: 0.596)
+        case .autumnVinyl:
+            return Color(red: 0.420, green: 0.341, blue: 0.275)
+        case .winterMoonlight:
+            return Color(red: 0.635, green: 0.698, blue: 0.788)
         }
     }
 
     var accent: Color {
         switch self {
-        case .classic:
-            return Color(red: 0.10, green: 0.72, blue: 1.0)
-        case .darkNight:
-            return Color(red: 0.46, green: 0.66, blue: 1.0)
-        case .warmTape:
-            return Color(red: 1.0, green: 0.66, blue: 0.25)
-        case .blueWalkman:
-            return Color(red: 0.25, green: 0.78, blue: 1.0)
-        case .redPulse:
-            return Color(red: 1.0, green: 0.25, blue: 0.30)
-        case .orangeGlow:
-            return Color(red: 1.0, green: 0.52, blue: 0.18)
-        case .yellowVinyl:
-            return Color(red: 1.0, green: 0.82, blue: 0.24)
-        case .greenTape:
-            return Color(red: 0.34, green: 0.86, blue: 0.42)
-        case .cyanWave:
-            return Color(red: 0.24, green: 0.88, blue: 0.90)
-        case .blueOcean:
-            return Color(red: 0.32, green: 0.58, blue: 1.0)
-        case .purpleDream:
-            return Color(red: 0.72, green: 0.42, blue: 1.0)
+        case .springDawn:
+            return Color(red: 0.220, green: 0.550, blue: 0.420)
+        case .midsummerStarlight:
+            return Color(red: 0.180, green: 0.480, blue: 0.920)
+        case .autumnVinyl:
+            return Color(red: 0.850, green: 0.380, blue: 0.150)
+        case .winterMoonlight:
+            return Color(red: 0.969, green: 0.784, blue: 0.451)
         }
     }
 
     var line: Color {
         switch self {
-        case .warmTape, .orangeGlow, .yellowVinyl:
-            return accent.opacity(0.18)
-        case .redPulse, .greenTape, .cyanWave, .blueOcean, .purpleDream:
-            return accent.opacity(0.16)
-        default:
-            return Color.white.opacity(0.12)
+        case .springDawn:
+            return Color(red: 0.886, green: 0.922, blue: 0.863)
+        case .midsummerStarlight:
+            return Color(red: 0.867, green: 0.918, blue: 0.961)
+        case .autumnVinyl:
+            return Color(red: 0.902, green: 0.839, blue: 0.765)
+        case .winterMoonlight:
+            return Color(red: 0.122, green: 0.184, blue: 0.290)
         }
     }
 
     var colorScheme: ColorScheme? {
-        .dark
+        self == .winterMoonlight ? .dark : .light
     }
+
+    // MARK: Theme-aware component colors
+
+    /// Color for unselected tab bar items — visible on both light and dark themes.
+    var tabBarUnselected: Color {
+        switch self {
+        case .springDawn:
+            return Color(red: 0.141, green: 0.227, blue: 0.196).opacity(0.52)
+        case .midsummerStarlight:
+            return Color(red: 0.149, green: 0.220, blue: 0.302).opacity(0.52)
+        case .autumnVinyl:
+            return Color(red: 0.169, green: 0.114, blue: 0.078).opacity(0.52)
+        case .winterMoonlight:
+            return Color.white.opacity(0.68)
+        }
+    }
+
+    /// Dimmed text for non-current lyrics, secondary status labels — clear on any theme.
+    var lyricsDimmed: Color {
+        switch self {
+        case .springDawn:
+            return Color(red: 0.341, green: 0.408, blue: 0.361).opacity(0.50)
+        case .midsummerStarlight:
+            return Color(red: 0.349, green: 0.420, blue: 0.502).opacity(0.50)
+        case .autumnVinyl:
+            return Color(red: 0.369, green: 0.314, blue: 0.278).opacity(0.50)
+        case .winterMoonlight:
+            return Color.white.opacity(0.46)
+        }
+    }
+
+    /// Subtle background for controls, mini buttons, search bars.
+    var controlBackground: Color {
+        switch self {
+        case .springDawn:
+            return Color(red: 0.341, green: 0.408, blue: 0.361).opacity(0.12)
+        case .midsummerStarlight:
+            return Color(red: 0.349, green: 0.420, blue: 0.502).opacity(0.12)
+        case .autumnVinyl:
+            return Color(red: 0.369, green: 0.314, blue: 0.278).opacity(0.12)
+        case .winterMoonlight:
+            return Color.white.opacity(0.10)
+        }
+    }
+
+    /// Base color for playback control button backgrounds — contrasts page background.
+    var controlButtonBase: Color {
+        switch self {
+        case .springDawn:
+            return Color(red: 0.141, green: 0.227, blue: 0.196)
+        case .midsummerStarlight:
+            return Color(red: 0.149, green: 0.220, blue: 0.302)
+        case .autumnVinyl:
+            return Color(red: 0.169, green: 0.114, blue: 0.078)
+        case .winterMoonlight:
+            return Color.white
+        }
+    }
+
+    // MARK: Phonograph resources
+
+    var phonographBaseName: String { "record_player_light_base@2x" }
+    var phonographArmName: String { "record_player_light_arm@2x" }
+    var phonographShadowName: String { "record_player_light_shadow@2x" }
+    var phonographChassisName: String { "record_player_light_chassis@2x" }
+    var phonographHighlightName: String { "record_player_light_highlight@2x" }
+    var phonographShadowOpacity: Double { 0.72 }
 
     static var current: AppTheme {
         guard let rawValue = UserDefaults.standard.string(forKey: "appTheme") else {
-            return .purpleDream
+            return seasonalDefault()
         }
-        return AppTheme(rawValue: rawValue) ?? .purpleDream
+        return AppTheme(rawValue: rawValue) ?? seasonalDefault()
+    }
+
+    static func seasonalDefault(date: Date = Date(), calendar: Calendar = .current) -> AppTheme {
+        let month = calendar.component(.month, from: date)
+        switch month {
+        case 1...3:
+            return .springDawn
+        case 4...6:
+            return .midsummerStarlight
+        case 7...9:
+            return .autumnVinyl
+        default:
+            return .winterMoonlight
+        }
     }
 }
 
@@ -276,6 +260,16 @@ final class ThemeManager: ObservableObject {
 
     func select(_ theme: AppTheme) {
         currentTheme = theme
+    }
+
+    func selectNextTheme() {
+        guard let currentIndex = AppTheme.allCases.firstIndex(of: currentTheme) else {
+            currentTheme = AppTheme.seasonalDefault()
+            return
+        }
+
+        let nextIndex = AppTheme.allCases.index(after: currentIndex)
+        currentTheme = nextIndex == AppTheme.allCases.endIndex ? AppTheme.allCases[0] : AppTheme.allCases[nextIndex]
     }
 }
 
@@ -331,6 +325,10 @@ enum XYStyle {
     static var accentSoft: Color { AppTheme.current.accent.opacity(0.18) }
     static var green: Color { Color(red: 0.54, green: 0.83, blue: 0.29) }
     static var danger: Color { Color(red: 1.0, green: 0.42, blue: 0.48) }
+    static var tabBarUnselected: Color { AppTheme.current.tabBarUnselected }
+    static var lyricsDimmed: Color { AppTheme.current.lyricsDimmed }
+    static var controlBackground: Color { AppTheme.current.controlBackground }
+    static var controlButtonBase: Color { AppTheme.current.controlButtonBase }
 }
 
 struct ContentView: View {
@@ -353,6 +351,7 @@ struct ContentView: View {
                 .zIndex(10)
         }
         .animation(.easeOut(duration: 0.24), value: themeManager.currentTheme)
+        .preferredColorScheme(themeManager.currentTheme.colorScheme)
         .overlay(alignment: .top) {
             if let message = viewModel.message {
                 ToastMessageView(message: message)
@@ -408,6 +407,7 @@ struct ContentView: View {
 }
 
 struct XingyuTabBar: View {
+    @EnvironmentObject private var themeManager: ThemeManager
     @Binding var selectedTab: AppTab
 
     var body: some View {
@@ -427,23 +427,25 @@ struct XingyuTabBar: View {
         .background(
             LinearGradient(
                 colors: [
-                    XYStyle.panel.opacity(0.94),
-                    XYStyle.panelDark.opacity(0.98)
+                    XYStyle.panelDark,
+                    XYStyle.panelDark.opacity(0.96)
                 ],
                 startPoint: .top,
                 endPoint: .bottom
             ),
             in: RoundedRectangle(cornerRadius: 22, style: .continuous)
         )
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
         .overlay {
             RoundedRectangle(cornerRadius: 22, style: .continuous)
-                .stroke(Color.white.opacity(0.12), lineWidth: 1)
+                .stroke(XYStyle.line, lineWidth: 1)
         }
         .shadow(color: .black.opacity(0.34), radius: 18, y: 8)
     }
 }
 
 struct XingyuTabBarItem: View {
+    @EnvironmentObject private var themeManager: ThemeManager
     let tab: AppTab
     let isSelected: Bool
 
@@ -456,7 +458,7 @@ struct XingyuTabBarItem: View {
                 .lineLimit(1)
                 .minimumScaleFactor(0.82)
         }
-        .foregroundStyle(isSelected ? XYStyle.accent : Color.white.opacity(0.68))
+        .foregroundStyle(isSelected ? XYStyle.accent : XYStyle.tabBarUnselected)
         .frame(maxWidth: .infinity)
         .frame(height: 48)
         .background {
@@ -475,6 +477,7 @@ struct XingyuTabBarItem: View {
 }
 
 struct ToastMessageView: View {
+    @EnvironmentObject private var themeManager: ThemeManager
     let message: String
 
     var body: some View {
@@ -501,11 +504,19 @@ struct ThemeBackground: View {
 
     var body: some View {
         ZStack {
+            if let backgroundImage {
+                Image(uiImage: backgroundImage)
+                    .resizable()
+                    .scaledToFill()
+                    .ignoresSafeArea()
+            }
+
             LinearGradient(
                 colors: colors,
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             )
+            .opacity(backgroundImage == nil ? 1.0 : themeManager.currentTheme == .winterMoonlight ? 0.34 : 0.22)
 
             RadialGradient(
                 colors: [XYStyle.accent.opacity(0.24), .clear],
@@ -522,6 +533,28 @@ struct ThemeBackground: View {
             )
         }
         .ignoresSafeArea()
+    }
+
+    private var backgroundImage: UIImage? {
+        let folder = themeManager.currentTheme.resourceFolder
+        let preferredName = UIDevice.current.userInterfaceIdiom == .pad ? "background-desktop" : "background-mobile"
+        if let mobileURL = Bundle.main.url(
+            forResource: preferredName,
+            withExtension: "webp",
+            subdirectory: "Themes/\(folder)/background"
+        ), let image = UIImage(contentsOfFile: mobileURL.path) {
+            return image
+        }
+
+        if let desktopURL = Bundle.main.url(
+            forResource: "background-desktop",
+            withExtension: "png",
+            subdirectory: "Themes/\(folder)/background"
+        ) {
+            return UIImage(contentsOfFile: desktopURL.path)
+        }
+
+        return nil
     }
 
     private var colors: [Color] {
@@ -595,6 +628,7 @@ struct ThemeSelectionView: View {
 }
 
 private struct ThemeOptionRow: View {
+    @EnvironmentObject private var themeManager: ThemeManager
     let theme: AppTheme
     let isSelected: Bool
 
