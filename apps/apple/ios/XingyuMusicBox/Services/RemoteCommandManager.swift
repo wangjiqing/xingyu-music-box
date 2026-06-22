@@ -1,6 +1,8 @@
 import Foundation
 import MediaPlayer
+#if os(iOS)
 import UIKit
+#endif
 
 @MainActor
 final class RemoteCommandManager {
@@ -26,6 +28,7 @@ final class RemoteCommandManager {
 
         removeTargets()
         activateTransportCommands()
+        disableUnsupportedCommands()
 
         let commandCenter = MPRemoteCommandCenter.shared()
         commandTargets = [
@@ -71,8 +74,11 @@ final class RemoteCommandManager {
     }
 
     func beginReceivingRemoteControlEvents() {
+        #if os(iOS)
         UIApplication.shared.beginReceivingRemoteControlEvents()
+        #endif
         activateTransportCommands()
+        disableUnsupportedCommands()
     }
 
     func removeTargets() {
@@ -87,5 +93,21 @@ final class RemoteCommandManager {
         }
         commandTargets = []
         isConfigured = false
+    }
+
+    private func disableUnsupportedCommands() {
+        let commandCenter = MPRemoteCommandCenter.shared()
+        commandCenter.stopCommand.isEnabled = false
+        commandCenter.seekForwardCommand.isEnabled = false
+        commandCenter.seekBackwardCommand.isEnabled = false
+        commandCenter.skipForwardCommand.isEnabled = false
+        commandCenter.skipBackwardCommand.isEnabled = false
+        commandCenter.ratingCommand.isEnabled = false
+        commandCenter.likeCommand.isEnabled = false
+        commandCenter.dislikeCommand.isEnabled = false
+        commandCenter.bookmarkCommand.isEnabled = false
+        commandCenter.changePlaybackRateCommand.isEnabled = false
+        commandCenter.changeRepeatModeCommand.isEnabled = false
+        commandCenter.changeShuffleModeCommand.isEnabled = false
     }
 }

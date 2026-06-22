@@ -68,6 +68,12 @@ enum LocalMusicSortMode: String, CaseIterable, Identifiable {
     }
 }
 
+private struct PlaybackInterruptionSnapshot {
+    let wasPlaying: Bool
+    let songID: String?
+    let currentTime: Double
+}
+
 @MainActor
 final class PlayerViewModel: ObservableObject {
     @Published private(set) var songs: [Song] = []
@@ -97,7 +103,7 @@ final class PlayerViewModel: ObservableObject {
 
     private let library = SongLibrary()
     private let player = MusicPlayer()
-    private let playbackStateStore = PlaybackStateStore()
+    private let playbackPersistence = PlaybackPersistence()
     private let recentPlayStore = RecentPlayStore()
     private let favoritesKey = "favoriteSongIDs"
     private let mediaLibraryPlayCountsKey = "mediaLibraryPlayCounts"
@@ -112,6 +118,9 @@ final class PlayerViewModel: ObservableObject {
     private var lastNowPlayingElapsedUpdate = Date.distantPast
     private var autoLyricsTask: Task<Void, Never>?
     private var autoLyricsAttemptedSongIDs: Set<String> = []
+    private var interruptionSnapshot: PlaybackInterruptionSnapshot?
+    private var userPausedDuringInterruption = false
+    private var userChangedPlaybackDuringInterruption = false
 
     init() {
         playbackMode = PlaybackMode(savedRawValue: savedPlaybackMode)
@@ -120,6 +129,7 @@ final class PlayerViewModel: ObservableObject {
         loadMediaLibraryPlayCounts()
         recentPlayRecords = recentPlayStore.load()
         setupRemoteCommands()
+        setupAudioInterruptions()
         bindPlayer()
         loadSongs()
     }
@@ -134,20 +144,35 @@ final class PlayerViewModel: ObservableObject {
         refreshMediaLibrarySongsIfAuthorized()
         refreshDisplayedSongs()
 
-        let savedState = playbackStateStore.load()
-        savedPlaybackState = savedState
-        if let savedState {
-            playbackMode = savedState.playbackMode
-            savedPlaybackMode = savedState.playbackMode.rawValue
+        let checkpoint = playbackPersistence.loadCheckpoint()
+        savedPlaybackState = checkpoint.map {
+            PlaybackState(
+                songID: $0.currentTrack.id,
+                currentTime: $0.boundedCurrentTime,
+                playbackMode: PlaybackMode(savedRawValue: $0.playbackMode),
+                updatedAt: $0.updatedAt
+            )
+        }
+        if let checkpoint {
+            playbackMode = PlaybackMode(savedRawValue: checkpoint.playbackMode)
+            savedPlaybackMode = playbackMode.rawValue
         }
 
-        let restoredSong = savedState.flatMap { state in
-            songs.first { $0.id == state.songID }
-        }
+        let restored = PlaybackPersistence.restore(
+            checkpoint: checkpoint,
+            library: songs,
+            id: \.id,
+            sourceURLString: { $0.assetURL?.absoluteString ?? $0.src.nilIfEmpty },
+            duration: { $0.duration.secondsFromClockText },
+            fallbackQueue: songs.filter(isPlayable)
+        )
 
-        currentSong = restoredSong ?? songs.first(where: { $0.id == savedCurrentSongID }) ?? songs.first
+        currentSong = restored?.track ?? songs.first(where: { $0.id == savedCurrentSongID }) ?? songs.first
+        if let restored {
+            playbackQueue = restored.queue
+        }
         if let currentSong {
-            let restoredTime = restoredSong == nil ? 0 : max(0, savedState?.currentTime ?? 0)
+            let restoredTime = restored?.startTime ?? 0
             savedCurrentSongID = currentSong.id
             loadCurrentSong(currentSong, shouldPlay: false, startTime: restoredTime, shouldSaveState: false)
         }
@@ -158,6 +183,7 @@ final class PlayerViewModel: ObservableObject {
     }
 
     func play(song: Song, queue: [Song]) {
+        markUserPlaybackChangeDuringInterruption()
         currentSong = song
         savedCurrentSongID = song.id
         playbackQueue = queue.filter(isPlayable)
@@ -169,6 +195,9 @@ final class PlayerViewModel: ObservableObject {
             loadCurrentSong(currentSong, shouldPlay: false)
         }
         player.togglePlayback()
+        if interruptionSnapshot != nil, !player.isPlaying {
+            userPausedDuringInterruption = true
+        }
         if player.isPlaying, let currentSong {
             RemoteCommandManager.shared.beginReceivingRemoteControlEvents()
             recordRecentPlay(for: currentSong)
@@ -180,11 +209,13 @@ final class PlayerViewModel: ObservableObject {
     }
 
     func previous() {
+        markUserPlaybackChangeDuringInterruption()
         guard let song = songForManualPrevious() else { return }
         play(song: song, queue: activePlaybackQueue)
     }
 
     func next() {
+        markUserPlaybackChangeDuringInterruption()
         guard let song = songForManualNext() else { return }
         play(song: song, queue: activePlaybackQueue)
     }
@@ -346,7 +377,7 @@ final class PlayerViewModel: ObservableObject {
     }
 
     func clearPlaybackState() {
-        playbackStateStore.clear()
+        playbackPersistence.clear()
         savedPlaybackState = nil
         savedCurrentSongID = ""
         message = "已清空播放状态"
@@ -362,7 +393,7 @@ final class PlayerViewModel: ObservableObject {
         recentPlayStore.clear()
         recentPlayRecords = []
 
-        playbackStateStore.clear()
+        playbackPersistence.clear()
         savedPlaybackState = nil
         savedCurrentSongID = ""
 
@@ -453,8 +484,78 @@ final class PlayerViewModel: ObservableObject {
 
     private func pauseFromRemoteCommand() {
         player.pause()
+        if interruptionSnapshot != nil {
+            userPausedDuringInterruption = true
+        }
         persistPlaybackState()
         syncPlaybackStateToNowPlaying()
+    }
+
+    private func setupAudioInterruptions() {
+        AudioSessionManager.shared.onInterruptionBegan = { [weak self] in
+            Task { @MainActor in
+                self?.handleAudioInterruptionBegan()
+            }
+        }
+        AudioSessionManager.shared.onInterruptionEnded = { [weak self] shouldResume in
+            Task { @MainActor in
+                self?.handleAudioInterruptionEnded(shouldResume: shouldResume)
+            }
+        }
+    }
+
+    private func handleAudioInterruptionBegan() {
+        interruptionSnapshot = PlaybackInterruptionSnapshot(
+            wasPlaying: player.isPlaying,
+            songID: currentSong?.id,
+            currentTime: currentTime
+        )
+        userPausedDuringInterruption = false
+        userChangedPlaybackDuringInterruption = false
+        player.pause()
+        isPlaying = false
+        syncPlaybackStateToNowPlaying()
+    }
+
+    private func handleAudioInterruptionEnded(shouldResume: Bool) {
+        defer {
+            interruptionSnapshot = nil
+            userPausedDuringInterruption = false
+            userChangedPlaybackDuringInterruption = false
+        }
+        guard let snapshot = interruptionSnapshot,
+              snapshot.wasPlaying,
+              shouldResume,
+              !userPausedDuringInterruption,
+              !userChangedPlaybackDuringInterruption,
+              currentSong?.id == snapshot.songID,
+              player.hasLoadedSong else {
+            persistPlaybackState()
+            syncPlaybackStateToNowPlaying()
+            return
+        }
+
+        do {
+            try AudioSessionManager.shared.configureForPlayback()
+        } catch {
+            playbackErrorMessage = error.localizedDescription
+            message = error.localizedDescription
+            return
+        }
+        player.seek(to: snapshot.currentTime) { [weak self] _ in
+            guard let self else { return }
+            player.play()
+            if let currentSong, player.isPlaying {
+                recordRecentPlay(for: currentSong)
+                updateNowPlayingInfo(for: currentSong, elapsedTime: snapshot.currentTime)
+            }
+        }
+    }
+
+    private func markUserPlaybackChangeDuringInterruption() {
+        if interruptionSnapshot != nil {
+            userChangedPlaybackDuringInterruption = true
+        }
     }
 
     private func song(offset: Int) -> Song? {
@@ -696,16 +797,48 @@ final class PlayerViewModel: ObservableObject {
 
     private func persistPlaybackState(currentTimeOverride: Double?) {
         guard let currentSong else { return }
-        let state = PlaybackState(
-            songID: currentSong.id,
-            currentTime: max(0, currentTimeOverride ?? player.currentTime),
-            playbackMode: playbackMode,
+        let checkpoint = PlaybackCheckpoint(
+            currentTrack: snapshot(for: currentSong),
+            currentTime: boundedCheckpointTime(currentTimeOverride ?? player.currentTime),
+            queue: activePlaybackQueue.map(snapshot(for:)),
+            queueIndex: activePlaybackQueue.firstIndex(of: currentSong) ?? 0,
+            playbackMode: playbackMode.rawValue,
             updatedAt: Date()
         )
-        playbackStateStore.save(state)
-        savedPlaybackState = state
+        playbackPersistence.save(checkpoint)
+        savedPlaybackState = PlaybackState(
+            songID: checkpoint.currentTrack.id,
+            currentTime: checkpoint.currentTime,
+            playbackMode: playbackMode,
+            updatedAt: checkpoint.updatedAt
+        )
         savedCurrentSongID = currentSong.id
         savedPlaybackMode = playbackMode.rawValue
+    }
+
+    private func snapshot(for song: Song) -> PlaybackTrackSnapshot {
+        PlaybackTrackSnapshot(
+            id: song.id,
+            sourceURLString: song.assetURL?.absoluteString ?? song.src.nilIfEmpty,
+            title: song.title,
+            artist: song.artist,
+            album: song.album
+        )
+    }
+
+    private func boundedCheckpointTime(_ value: Double) -> Double {
+        guard value.isFinite else { return 0 }
+        let time = max(0, value)
+        guard duration.isFinite, duration > 0 else { return time }
+        if time >= duration {
+            switch playbackMode {
+            case .repeatOne:
+                return 0
+            case .sequential, .repeatAll, .shuffle:
+                return min(time, max(0, duration - 0.25))
+            }
+        }
+        return time
     }
 
     private func formatTime(_ value: Double) -> String {

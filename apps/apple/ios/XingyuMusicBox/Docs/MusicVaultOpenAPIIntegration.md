@@ -2,7 +2,7 @@
 
 ## 当前默认配置
 
-- 默认公网 HTTPS 服务地址：`https://www.oceanofstars.com.cn:18443`
+- 默认 Release 配置不内置服务地址；本地调试请使用自己的星语音库 endpoint。
 - 局域网调试地址示例：`http://192.168.x.x:18081`
 - OpenAPI 前缀：`/api/open/v1`
 - 集中配置入口：`MusicVaultConfig`
@@ -16,7 +16,7 @@
 
 ```swift
 let credential = OpenApiCredential(accessKey: "xmv_ak_dev", secretKey: "local-secret")
-let config = MusicVaultConfig(baseURLString: "https://www.oceanofstars.com.cn:18443", credential: credential)
+let config = MusicVaultConfig(baseURLString: "https://your-music-vault.example.com", credential: credential)
 let client = MusicVaultApiClient(config: config)
 ```
 
@@ -25,7 +25,7 @@ let client = MusicVaultApiClient(config: config)
 默认构建使用公网 HTTPS 入口：
 
 ```text
-https://www.oceanofstars.com.cn:18443
+https://your-music-vault.example.com
 ```
 
 本地或局域网调试时，不要修改业务代码；复制 `Resources/OpenApiConfig.example.plist` 为被忽略的 `Resources/OpenApiConfig.plist`，只改其中的 `baseUrl`。例如：
@@ -43,7 +43,7 @@ http://192.168.x.x:18081
 3. `OpenApiConfig.plist` 已加入 `.gitignore`，不要提交真实 AK/SK。
 4. Xcode 工程中的 `Copy Local OpenAPI Config` build phase 会在本地配置存在时把它复制进 app bundle。
 
-`MusicVaultConfig.default` 会优先读取 bundle 中的 `OpenApiConfig.plist`；未找到时只保留默认 base URL，不会生成凭证。缺少凭证时客户端会在发请求前报错，避免发出无签名请求。
+Debug 构建的 `MusicVaultConfig.default` 会读取 bundle 中的 `OpenApiConfig.plist`；Release 构建不会注入该文件。未配置 endpoint 或凭证时客户端会在组请求前报错，避免发出带开发配置的请求。
 
 ## HMAC 签名规则
 

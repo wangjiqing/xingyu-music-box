@@ -428,7 +428,6 @@ private struct MacAccountHeader: View {
     @EnvironmentObject private var themeManager: MacThemeManager
 
     let isCollapsed: Bool
-    private static let iconPath = "/Users/wangjiqing/Project/xingyu-music-box/assets/app-icon/xingyu-music-box-icon-midsummer-starlight-512.png"
 
     var body: some View {
         HStack(spacing: 10) {
@@ -449,7 +448,8 @@ private struct MacAccountHeader: View {
 
     @ViewBuilder
     private var appIcon: some View {
-        if let image = NSImage(contentsOfFile: Self.iconPath) {
+        if let url = Bundle.main.url(forResource: "MacAppIcon", withExtension: "icns"),
+           let image = NSImage(contentsOf: url) {
             Image(nsImage: image)
                 .resizable()
                 .scaledToFill()
@@ -2673,18 +2673,52 @@ private struct MacPlaybackBar: View {
     }
 
     private func content(width: CGFloat) -> some View {
-        let compact = width < 860
-        let trackWidth = clamp(width * 0.22, min: compact ? 160 : 210, max: 280)
-        let controlsWidth = clamp(width * (compact ? 0.58 : 0.62), min: compact ? 360 : 520, max: 860)
-        let actionWidth = clamp(width * 0.12, min: 96, max: 160)
+        let paddedWidth = max(0, width - 36)
+        let wide = paddedWidth >= 1760
+        let medium = paddedWidth >= 980
+        let trackWidth = clamp(paddedWidth * (wide ? 0.22 : 0.24), min: wide ? 230 : 190, max: wide ? 320 : 250)
+        let controlsWidth = clamp(paddedWidth * (wide ? 0.36 : 0.42), min: wide ? 520 : 390, max: wide ? 660 : 500)
+        let actionWidth = clamp(paddedWidth * 0.10, min: 116, max: 152)
 
-        return ViewThatFits(in: .horizontal) {
-            regularContent(trackWidth: trackWidth, controlsWidth: controlsWidth, actionWidth: actionWidth, showsExtras: !compact)
-            compactContent(controlsWidth: min(width - 210, 420))
+        return Group {
+            if wide {
+                centeredContent(trackWidth: trackWidth, controlsWidth: controlsWidth, actionWidth: actionWidth, showsActions: true, showsOuterButtons: true)
+            } else if medium {
+                centeredContent(trackWidth: trackWidth, controlsWidth: controlsWidth, actionWidth: 0, showsActions: false, showsOuterButtons: false)
+            } else {
+                compactContent(controlsWidth: min(max(paddedWidth - 330, 300), 390))
+            }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .padding(.horizontal, compact ? 14 : 18)
+        .padding(.horizontal, wide ? 18 : 14)
         .macGlassPanel(cornerRadius: 10, opacity: 0.86)
+    }
+
+    private func centeredContent(
+        trackWidth: CGFloat,
+        controlsWidth: CGFloat,
+        actionWidth: CGFloat,
+        showsActions: Bool,
+        showsOuterButtons: Bool
+    ) -> some View {
+        ZStack {
+            HStack(spacing: 14) {
+                MacPlaybackArtworkButton(track: track, size: 82, isShowingNowPlayingPage: $isShowingNowPlayingPage, namespace: namespace)
+
+                trackSummary
+                    .frame(width: trackWidth, alignment: .leading)
+
+                Spacer(minLength: controlsWidth + 36)
+
+                if showsActions {
+                    actionCluster
+                        .frame(width: actionWidth, alignment: .trailing)
+                }
+            }
+
+            playbackControls(showsOuterButtons: showsOuterButtons)
+                .frame(width: controlsWidth)
+        }
     }
 
     private func regularContent(trackWidth: CGFloat, controlsWidth: CGFloat, actionWidth: CGFloat, showsExtras: Bool) -> some View {
@@ -2694,15 +2728,17 @@ private struct MacPlaybackBar: View {
             trackSummary
                 .frame(width: trackWidth, alignment: .leading)
 
-            Spacer()
+            Spacer(minLength: 18)
 
             playbackControls(showsOuterButtons: showsExtras)
                 .frame(width: controlsWidth)
 
-            Spacer()
+            if showsExtras {
+                Spacer(minLength: 18)
 
-            actionCluster
-                .frame(width: actionWidth, alignment: .trailing)
+                actionCluster
+                    .frame(width: actionWidth, alignment: .trailing)
+            }
         }
     }
 
@@ -3018,7 +3054,7 @@ private struct MacSettingsSummaryView: View {
 
                 MacSettingsTextField(
                     title: "连接地址",
-                    placeholder: MusicVaultConfig.defaultBaseURLString,
+                    placeholder: MusicVaultConfig.endpointPlaceholder,
                     text: $baseURLString
                 )
 
@@ -3055,7 +3091,9 @@ private struct MacSettingsSummaryView: View {
                     .foregroundStyle(isStatusError ? Color.red.opacity(0.88) : themeManager.currentTheme.muted)
                     .textSelection(.enabled)
 
-                MacSettingLine(title: "保存位置", value: MusicVaultConfig.userConfigurationPath)
+                if !baseURLString.isEmpty || !accessKey.isEmpty || !secretKey.isEmpty {
+                    MacSettingLine(title: "保存位置", value: MusicVaultConfig.userConfigurationPath)
+                }
             }
             .padding(18)
             .background(themeManager.currentTheme.panel.opacity(0.58), in: RoundedRectangle(cornerRadius: 10))
@@ -3076,7 +3114,7 @@ private struct MacSettingsSummaryView: View {
 
     private func loadConfiguration() {
         let config = MusicVaultConfig.default
-        baseURLString = config.baseURL.absoluteString
+        baseURLString = config.baseURL?.absoluteString ?? ""
         accessKey = config.credential?.accessKey ?? ""
         secretKey = config.credential?.secretKey ?? ""
     }

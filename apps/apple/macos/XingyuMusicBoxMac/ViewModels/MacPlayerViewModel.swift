@@ -52,6 +52,14 @@ enum MacPlaybackMode: CaseIterable, Equatable {
         case .shuffle: return "shuffle"
         }
     }
+
+    var persistenceValue: String {
+        switch self {
+        case .sequential: return "sequential"
+        case .repeatOne: return "repeatOne"
+        case .shuffle: return "shuffle"
+        }
+    }
 }
 
 struct MacTrackItem: Identifiable {
@@ -164,12 +172,17 @@ final class MacPlayerViewModel: ObservableObject {
     private let favoriteTrackIDsKey = "macFavoriteTrackIDs"
     private let localFolderBookmarkDataKey = "macLocalFolderBookmarkData"
     private let localFolderPathKey = "macLocalFolderPath"
+    private let playbackPersistence = PlaybackPersistence(store: PlaybackStateStore(defaults: UserDefaults.standard))
     private let supportedLocalAudioExtensions: Set<String> = ["mp3", "m4a", "flac", "aac", "wav", "aif", "aiff"]
+    private var restoredCheckpointID: String?
+    private var lastNowPlayingTrackID: String?
+    private var lastNowPlayingDuration: Double = 0
+    private var lastNowPlayingElapsedUpdate = Date.distantPast
+    private var runtimeServicesStarted = false
 
     init() {
         recentTrackIDs = UserDefaults.standard.stringArray(forKey: recentTrackIDsKey) ?? []
         favoriteTrackIDs = Set(UserDefaults.standard.stringArray(forKey: favoriteTrackIDsKey) ?? [])
-        restorePersistedLocalFolder()
     }
 
     deinit {
@@ -184,6 +197,9 @@ final class MacPlayerViewModel: ObservableObject {
         }
         playbackAccessURL?.stopAccessingSecurityScopedResource()
         importedFolderAccessURLs.forEach { $0.stopAccessingSecurityScopedResource() }
+        Task { @MainActor in
+            RemoteCommandManager.shared.removeTargets()
+        }
     }
 
     var selectedTrack: MacTrackItem? {
@@ -252,6 +268,17 @@ final class MacPlayerViewModel: ObservableObject {
         }
 
         return "星语音乐盒"
+    }
+
+    func startRuntimeServicesIfNeeded() {
+        guard !runtimeServicesStarted else { return }
+        runtimeServicesStarted = true
+
+        Task { @MainActor in
+            await Task.yield()
+            setupRemoteCommands()
+            restorePersistedLocalFolder()
+        }
     }
 
     func isFavorite(_ track: MacTrackItem?) -> Bool {
@@ -408,6 +435,10 @@ final class MacPlayerViewModel: ObservableObject {
     }
 
     func play(_ track: MacTrackItem) {
+        load(track, shouldPlay: true, startTime: 0)
+    }
+
+    private func load(_ track: MacTrackItem, shouldPlay: Bool, startTime: Double) {
         selectedTrackID = track.id
         currentTrack = track
         errorMessage = nil
@@ -440,20 +471,36 @@ final class MacPlayerViewModel: ObservableObject {
             observeProgress()
             observePlaybackEnd(for: item)
             observePlaybackFailure(for: item)
-            player?.play()
-            isPlaying = true
-            recordRecentTrack(track)
-            message = "正在播放：\(track.title)"
+            if startTime > 0 {
+                let target = max(0, startTime)
+                player?.seek(to: CMTime(seconds: target, preferredTimescale: 600))
+                currentTime = target
+            }
+            if shouldPlay {
+                player?.play()
+                isPlaying = true
+                recordRecentTrack(track)
+                message = "正在播放：\(track.title)"
+            } else {
+                isPlaying = false
+                message = "已恢复：\(track.title)"
+            }
+            persistPlaybackCheckpoint(currentTimeOverride: startTime)
+            updateNowPlayingInfo(for: track, elapsedTime: startTime)
             Task {
                 await loadDuration(for: item, fallback: track.durationMs)
                 if let remoteTrack = track.remoteTrack {
                     await loadLyrics(for: remoteTrack)
+                }
+                await MainActor.run {
+                    updateNowPlayingInfo(for: track)
                 }
             }
         } catch {
             errorMessage = error.localizedDescription
             message = "播放失败"
             isPlaying = false
+            NowPlayingInfoManager.shared.clear()
         }
     }
 
@@ -469,6 +516,8 @@ final class MacPlayerViewModel: ObservableObject {
             player?.play()
             isPlaying = true
         }
+        persistPlaybackCheckpoint()
+        syncPlaybackStateToNowPlaying()
     }
 
     func previous() {
@@ -488,6 +537,7 @@ final class MacPlayerViewModel: ObservableObject {
         }
         let nextIndex = MacPlaybackMode.allCases.index(after: currentIndex)
         playbackMode = nextIndex == MacPlaybackMode.allCases.endIndex ? MacPlaybackMode.allCases[0] : MacPlaybackMode.allCases[nextIndex]
+        persistPlaybackCheckpoint()
     }
 
     func setVolume(_ value: Double) {
@@ -523,9 +573,21 @@ final class MacPlayerViewModel: ObservableObject {
 
     func seek(to seconds: Double) {
         guard let player else { return }
-        let target = max(0, seconds)
+        let target = duration.isFinite && duration > 0 ? min(max(0, seconds), duration) : max(0, seconds)
         currentTime = target
-        player.seek(to: CMTime(seconds: target, preferredTimescale: 600))
+        player.seek(to: CMTime(seconds: target, preferredTimescale: 600)) { [weak self] finished in
+            Task { @MainActor in
+                guard finished else { return }
+                self?.persistPlaybackCheckpoint(currentTimeOverride: target)
+                self?.syncElapsedTimeToNowPlaying(target)
+            }
+        }
+        persistPlaybackCheckpoint(currentTimeOverride: target)
+        syncElapsedTimeToNowPlaying(target)
+    }
+
+    func persistPlaybackCheckpoint() {
+        persistPlaybackCheckpoint(currentTimeOverride: nil)
     }
 
     func formatTime(_ seconds: Double) -> String {
@@ -683,6 +745,7 @@ final class MacPlayerViewModel: ObservableObject {
 
     private func handlePlaybackEnd() {
         isPlaying = false
+        persistPlaybackCheckpoint(currentTimeOverride: duration)
         switch playbackMode {
         case .repeatOne:
             guard let track = currentTrack else { return }
@@ -694,6 +757,123 @@ final class MacPlayerViewModel: ObservableObject {
             guard let track = randomTrack() else { return }
             play(track)
         }
+    }
+
+    private func setupRemoteCommands() {
+        RemoteCommandManager.shared.setup(
+            onPlay: { [weak self] in self?.playFromRemoteCommand() },
+            onPause: { [weak self] in self?.pauseFromRemoteCommand() },
+            onTogglePlayPause: { [weak self] in self?.togglePlayback() },
+            onNext: { [weak self] in self?.next() },
+            onPrevious: { [weak self] in self?.previous() },
+            onSeek: { [weak self] time in self?.seek(to: time) }
+        )
+    }
+
+    private func playFromRemoteCommand() {
+        if player == nil, let track = selectedTrack {
+            play(track)
+            return
+        }
+        player?.play()
+        isPlaying = player != nil
+        persistPlaybackCheckpoint()
+        syncPlaybackStateToNowPlaying()
+    }
+
+    private func pauseFromRemoteCommand() {
+        player?.pause()
+        isPlaying = false
+        persistPlaybackCheckpoint()
+        syncPlaybackStateToNowPlaying()
+    }
+
+    private func restorePlaybackCheckpointIfPossible() {
+        guard let checkpoint = playbackPersistence.loadCheckpoint(),
+              restoredCheckpointID != checkpoint.currentTrack.id else {
+            return
+        }
+        let restored = PlaybackPersistence.restore(
+            checkpoint: checkpoint,
+            library: tracks,
+            id: \.id,
+            sourceURLString: { $0.localURL?.absoluteString },
+            duration: { $0.durationMs.map { Double($0) / 1000 } },
+            fallbackQueue: tracks
+        )
+        guard let restored else { return }
+        restoredCheckpointID = checkpoint.currentTrack.id
+        load(restored.track, shouldPlay: false, startTime: restored.startTime)
+    }
+
+    private func persistPlaybackCheckpoint(currentTimeOverride: Double? = nil) {
+        guard let currentTrack else { return }
+        let queue = tracks.isEmpty ? [currentTrack] : tracks
+        let checkpoint = PlaybackCheckpoint(
+            currentTrack: snapshot(for: currentTrack),
+            currentTime: boundedCheckpointTime(currentTimeOverride ?? currentTime),
+            queue: queue.map(snapshot(for:)),
+            queueIndex: queue.firstIndex { $0.id == currentTrack.id } ?? 0,
+            playbackMode: playbackMode.persistenceValue,
+            updatedAt: Date()
+        )
+        playbackPersistence.save(checkpoint)
+    }
+
+    private func snapshot(for track: MacTrackItem) -> PlaybackTrackSnapshot {
+        PlaybackTrackSnapshot(
+            id: track.id,
+            sourceURLString: track.localURL?.absoluteString,
+            title: track.title,
+            artist: track.artist,
+            album: track.album
+        )
+    }
+
+    private func boundedCheckpointTime(_ value: Double) -> Double {
+        guard value.isFinite else { return 0 }
+        let time = max(0, value)
+        guard duration.isFinite, duration > 0 else { return time }
+        if time >= duration {
+            return playbackMode == .repeatOne ? 0 : min(time, max(0, duration - 0.25))
+        }
+        return time
+    }
+
+    private func refreshNowPlayingAndCheckpoint() {
+        guard let currentTrack else { return }
+        if lastNowPlayingTrackID != currentTrack.id || abs(duration - lastNowPlayingDuration) > 0.5 {
+            updateNowPlayingInfo(for: currentTrack)
+        } else if isPlaying && Date().timeIntervalSince(lastNowPlayingElapsedUpdate) >= 1 {
+            syncElapsedTimeToNowPlaying(currentTime)
+        }
+        if Date().timeIntervalSince(lastNowPlayingElapsedUpdate) >= 5 {
+            persistPlaybackCheckpoint()
+        }
+    }
+
+    private func updateNowPlayingInfo(for track: MacTrackItem, elapsedTime: Double? = nil) {
+        NowPlayingInfoManager.shared.update(
+            track: track,
+            duration: duration,
+            elapsedTime: elapsedTime ?? currentTime,
+            isPlaying: isPlaying
+        )
+        lastNowPlayingTrackID = track.id
+        lastNowPlayingDuration = duration
+        lastNowPlayingElapsedUpdate = Date()
+    }
+
+    private func syncPlaybackStateToNowPlaying() {
+        guard currentTrack != nil, player != nil else { return }
+        NowPlayingInfoManager.shared.updatePlaybackState(isPlaying: isPlaying, elapsedTime: currentTime)
+        lastNowPlayingElapsedUpdate = Date()
+    }
+
+    private func syncElapsedTimeToNowPlaying(_ elapsedTime: Double) {
+        guard currentTrack != nil, player != nil else { return }
+        NowPlayingInfoManager.shared.updateElapsedTime(elapsedTime)
+        lastNowPlayingElapsedUpdate = Date()
     }
 
     private func recordRecentTrack(_ track: MacTrackItem) {
@@ -779,6 +959,7 @@ final class MacPlayerViewModel: ObservableObject {
         localTracks = try await localTracks(in: folderURL)
         mergeTracks()
         selectedTrackID = selectedTrackID ?? tracks.first?.id
+        restorePlaybackCheckpointIfPossible()
     }
 
     private func tracksByID(ids: [String]) -> [MacTrackItem] {
@@ -799,6 +980,7 @@ final class MacPlayerViewModel: ObservableObject {
                    itemDuration > 0 {
                     self?.duration = itemDuration
                 }
+                self?.refreshNowPlayingAndCheckpoint()
             }
         }
     }

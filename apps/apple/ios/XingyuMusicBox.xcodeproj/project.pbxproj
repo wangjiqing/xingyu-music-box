@@ -58,6 +58,9 @@
 		01100000000000000000000D /* NowPlaying in Resources */ = {isa = PBXBuildFile; fileRef = 02100000000000000000000A /* NowPlaying */; };
 		01100000000000000000000E /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 02100000000000000000000B /* Assets.xcassets */; };
 		01100000000000000000000F /* MacAppIcon.icns in Resources */ = {isa = PBXBuildFile; fileRef = 02100000000000000000000F /* MacAppIcon.icns */; };
+		011000000000000000000010 /* PlaybackStateStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000015 /* PlaybackStateStore.swift */; };
+		011000000000000000000011 /* NowPlayingInfoManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 02000000000000000000001B /* NowPlayingInfoManager.swift */; };
+		011000000000000000000012 /* RemoteCommandManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 02000000000000000000001D /* RemoteCommandManager.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -405,7 +408,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "CONFIG_PATH=\"${SRCROOT}/XingyuMusicBox/Resources/OpenApiConfig.plist\"\nDEST_PATH=\"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/OpenApiConfig.plist\"\nif [ -f \"$CONFIG_PATH\" ]; then\n  cp \"$CONFIG_PATH\" \"$DEST_PATH\"\nfi\n";
+			shellScript = "CONFIG_PATH=\"${SRCROOT}/XingyuMusicBox/Resources/OpenApiConfig.plist\"\nDEST_PATH=\"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/OpenApiConfig.plist\"\nif [ \"${CONFIGURATION}\" = \"Debug\" ] && [ -f \"$CONFIG_PATH\" ]; then\n  cp \"$CONFIG_PATH\" \"$DEST_PATH\"\nelse\n  rm -f \"$DEST_PATH\"\nfi\n";
 		};
 		071000000000000000000002 /* Copy Local OpenAPI Config */ = {
 			isa = PBXShellScriptBuildPhase;
@@ -425,7 +428,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "CONFIG_PATH=\"${SRCROOT}/XingyuMusicBox/Resources/OpenApiConfig.plist\"\nDEST_PATH=\"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/OpenApiConfig.plist\"\nif [ -f \"$CONFIG_PATH\" ]; then\n  cp \"$CONFIG_PATH\" \"$DEST_PATH\"\nfi\n";
+			shellScript = "CONFIG_PATH=\"${SRCROOT}/XingyuMusicBox/Resources/OpenApiConfig.plist\"\nDEST_PATH=\"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/OpenApiConfig.plist\"\nif [ \"${CONFIGURATION}\" = \"Debug\" ] && [ -f \"$CONFIG_PATH\" ]; then\n  cp \"$CONFIG_PATH\" \"$DEST_PATH\"\nelse\n  rm -f \"$DEST_PATH\"\nfi\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 
@@ -482,6 +485,9 @@
 				011000000000000000000008 /* AudioSource.swift in Sources */,
 				011000000000000000000009 /* Song.swift in Sources */,
 				01100000000000000000000A /* LRCParser.swift in Sources */,
+				011000000000000000000010 /* PlaybackStateStore.swift in Sources */,
+				011000000000000000000011 /* NowPlayingInfoManager.swift in Sources */,
+				011000000000000000000012 /* RemoteCommandManager.swift in Sources */,
 				011000000000000000000004 /* MusicVaultDTOs.swift in Sources */,
 				011000000000000000000005 /* MusicVaultApiClient.swift in Sources */,
 				011000000000000000000006 /* MusicVaultConfig.swift in Sources */,
@@ -585,11 +591,12 @@
 				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
-				COPY_PHASE_STRIP = NO;
-				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				COPY_PHASE_STRIP = YES;
+				DEBUG_INFORMATION_FORMAT = "dwarf";
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_GENERATE_DEBUGGING_SYMBOLS = NO;
 				GCC_C_LANGUAGE_STANDARD = gnu17;
 				GCC_NO_COMMON_BLOCKS = YES;
 				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
@@ -603,6 +610,7 @@
 				MTL_FAST_MATH = YES;
 				SDKROOT = iphoneos;
 				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_SERIALIZE_DEBUGGING_OPTIONS = NO;
 				VALIDATE_PRODUCT = YES;
 			};
 			name = Release;
@@ -629,7 +637,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 0.4.1;
 				PRODUCT_BUNDLE_IDENTIFIER = com.xingyu.musicbox;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -660,7 +668,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 0.4.1;
 				PRODUCT_BUNDLE_IDENTIFIER = com.xingyu.musicbox;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -691,7 +699,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = 0.4.0;
+				MARKETING_VERSION = 0.4.1;
 				PRODUCT_BUNDLE_IDENTIFIER = com.xingyu.musicbox.mac;
 				PRODUCT_NAME = "星语音乐盒";
 				SDKROOT = macosx;
@@ -723,7 +731,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = 0.4.0;
+				MARKETING_VERSION = 0.4.1;
 				PRODUCT_BUNDLE_IDENTIFIER = com.xingyu.musicbox.mac;
 				PRODUCT_NAME = "星语音乐盒";
 				SDKROOT = macosx;

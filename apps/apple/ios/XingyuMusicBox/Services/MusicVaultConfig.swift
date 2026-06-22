@@ -6,10 +6,11 @@ struct OpenApiCredential: Codable, Equatable {
 }
 
 struct MusicVaultConfig: Codable, Equatable {
-    static let defaultBaseURLString = "https://www.oceanofstars.com.cn:18443"
+    static let defaultBaseURLString = ""
+    static let endpointPlaceholder = "https://your-music-vault.example.com"
     static let openAPIPathPrefix = "/api/open/v1"
 
-    let baseURL: URL
+    let baseURL: URL?
     let credential: OpenApiCredential?
 
     static var `default`: MusicVaultConfig {
@@ -18,13 +19,21 @@ struct MusicVaultConfig: Codable, Equatable {
             return user
         }
         #endif
+        #if DEBUG
         if let local = MusicVaultConfig.localOpenApiConfig() {
             return local
         }
+        #endif
         return MusicVaultConfig(baseURLString: defaultBaseURLString)
     }
 
     #if os(macOS)
+    static var sharedConfigurationURL: URL {
+        URL(fileURLWithPath: "/Library/Application Support", isDirectory: true)
+            .appendingPathComponent("XingyuMusicBox", isDirectory: true)
+            .appendingPathComponent("OpenApiConfig.plist", isDirectory: false)
+    }
+
     static var userConfigurationURL: URL? {
         guard let supportURL = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first else {
             return nil
@@ -35,18 +44,26 @@ struct MusicVaultConfig: Codable, Equatable {
     }
 
     static var userConfigurationPath: String {
-        userConfigurationURL?.path ?? "Application Support/XingyuMusicBox/OpenApiConfig.plist"
+        writableConfigurationURL()?.path
+            ?? existingConfigurationURLs().first?.path
+            ?? sharedConfigurationURL.path
     }
     #endif
 
-    init(baseURL: URL, credential: OpenApiCredential? = nil) {
+    init(baseURL: URL?, credential: OpenApiCredential? = nil) {
         self.baseURL = baseURL
         self.credential = credential
     }
 
     init(baseURLString: String, credential: OpenApiCredential? = nil) {
+        let baseURLString = baseURLString.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !baseURLString.isEmpty else {
+            self.baseURL = nil
+            self.credential = credential
+            return
+        }
         guard let url = URL(string: baseURLString) else {
-            self.baseURL = URL(string: Self.defaultBaseURLString)!
+            self.baseURL = nil
             self.credential = credential
             return
         }
@@ -59,26 +76,35 @@ struct MusicVaultConfig: Codable, Equatable {
         let baseURLString = baseURLString.trimmingCharacters(in: .whitespacesAndNewlines)
         let accessKey = accessKey.trimmingCharacters(in: .whitespacesAndNewlines)
         let secretKey = secretKey.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard URL(string: baseURLString) != nil else {
+        guard !baseURLString.isEmpty, URL(string: baseURLString) != nil else {
             throw MusicVaultConfigurationError.invalidBaseURL
         }
         guard !accessKey.isEmpty, !secretKey.isEmpty else {
             throw MusicVaultConfigurationError.missingCredential
         }
-        guard let url = userConfigurationURL else {
+        guard let url = writableConfigurationURL() ?? userConfigurationURL else {
             throw MusicVaultConfigurationError.configurationPathUnavailable
         }
 
-        let config = MusicVaultConfig(
+        let config = StoredMusicVaultConfig(
             baseURLString: baseURLString,
-            credential: OpenApiCredential(accessKey: accessKey, secretKey: secretKey)
+            accessKey: accessKey,
+            secretKey: secretKey
         )
         let data = try PropertyListEncoder().encode(config)
         try FileManager.default.createDirectory(
             at: url.deletingLastPathComponent(),
             withIntermediateDirectories: true
         )
+        try FileManager.default.setAttributes(
+            [.posixPermissions: 0o700],
+            ofItemAtPath: url.deletingLastPathComponent().path
+        )
         try data.write(to: url, options: .atomic)
+        try FileManager.default.setAttributes(
+            [.posixPermissions: 0o600],
+            ofItemAtPath: url.path
+        )
     }
     #endif
 
@@ -101,17 +127,79 @@ struct MusicVaultConfig: Codable, Equatable {
 
     #if os(macOS)
     private static func userOpenApiConfig() -> MusicVaultConfig? {
-        guard let url = userConfigurationURL,
-              let data = try? Data(contentsOf: url),
-              let config = try? PropertyListDecoder().decode(MusicVaultConfig.self, from: data) else {
+        for url in existingConfigurationURLs() {
+            guard let config = loadUserOpenApiConfig(from: url) else { continue }
+            return config
+        }
+        return nil
+    }
+
+    private static func loadUserOpenApiConfig(from url: URL) -> MusicVaultConfig? {
+        guard let data = try? Data(contentsOf: url) else { return nil }
+        let decoder = PropertyListDecoder()
+        if let stored = try? decoder.decode(StoredMusicVaultConfig.self, from: data) {
+            let credential = stored.accessKey.flatMap { accessKey in
+                stored.secretKey.map { OpenApiCredential(accessKey: accessKey, secretKey: $0) }
+            }
+            return MusicVaultConfig(
+                baseURLString: stored.baseURLString,
+                credential: credential
+            )
+        }
+
+        guard let legacy = try? decoder.decode(LegacyMusicVaultConfig.self, from: data) else {
             return nil
         }
-        return config
+        if let credential = legacy.credential {
+            try? saveUserConfiguration(
+                baseURLString: legacy.baseURL.absoluteString,
+                accessKey: credential.accessKey,
+                secretKey: credential.secretKey
+            )
+        }
+        return MusicVaultConfig(
+            baseURL: legacy.baseURL,
+            credential: legacy.credential
+        )
+    }
+
+    private static func existingConfigurationURLs() -> [URL] {
+        [sharedConfigurationURL, userConfigurationURL]
+            .compactMap { $0 }
+            .filter { FileManager.default.fileExists(atPath: $0.path) }
+    }
+
+    private static func writableConfigurationURL() -> URL? {
+        let fileManager = FileManager.default
+        let sharedDirectoryURL = sharedConfigurationURL.deletingLastPathComponent()
+
+        if fileManager.fileExists(atPath: sharedDirectoryURL.path),
+           fileManager.isWritableFile(atPath: sharedDirectoryURL.path) {
+            return sharedConfigurationURL
+        }
+
+        if fileManager.fileExists(atPath: sharedConfigurationURL.path),
+           fileManager.isWritableFile(atPath: sharedConfigurationURL.path) {
+            return sharedConfigurationURL
+        }
+
+        return userConfigurationURL
     }
     #endif
 }
 
 #if os(macOS)
+private struct StoredMusicVaultConfig: Codable {
+    let baseURLString: String
+    let accessKey: String?
+    let secretKey: String?
+}
+
+private struct LegacyMusicVaultConfig: Codable {
+    let baseURL: URL
+    let credential: OpenApiCredential?
+}
+
 enum MusicVaultConfigurationError: LocalizedError {
     case invalidBaseURL
     case missingCredential
