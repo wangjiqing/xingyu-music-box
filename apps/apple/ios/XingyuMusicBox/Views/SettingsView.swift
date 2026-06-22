@@ -334,8 +334,8 @@ private struct MusicVaultProbeView: View {
         VStack(alignment: .leading, spacing: 12) {
             SettingsRow(
                 title: "服务地址",
-                subtitle: "MusicVaultConfig.defaultBaseURLString",
-                value: MusicVaultConfig.defaultBaseURLString
+                subtitle: "Release 首次启动默认留空",
+                value: MusicVaultConfig.default.baseURL?.absoluteString ?? "未配置"
             )
 
             SettingsDivider()

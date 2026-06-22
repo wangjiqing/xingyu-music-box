@@ -5,6 +5,8 @@ import SwiftUI
 struct XingyuMusicBoxMacApp: App {
     @StateObject private var viewModel = MacPlayerViewModel()
     @StateObject private var themeManager = MacThemeManager()
+    @Environment(\.scenePhase) private var scenePhase
+    @NSApplicationDelegateAdaptor(MacAppDelegate.self) private var appDelegate
 
     var body: some Scene {
         WindowGroup("星语音乐盒") {
@@ -14,6 +16,14 @@ struct XingyuMusicBoxMacApp: App {
                 .preferredColorScheme(themeManager.currentTheme.colorScheme)
                 .frame(minWidth: MacLayoutMetrics.minimumWindowSize.width, minHeight: MacLayoutMetrics.minimumWindowSize.height)
                 .background(MacWindowConfigurator())
+                .onAppear {
+                    viewModel.startRuntimeServicesIfNeeded()
+                }
+                .onChange(of: scenePhase) { _, phase in
+                    if phase != .active {
+                        viewModel.persistPlaybackCheckpoint()
+                    }
+                }
         }
         .windowStyle(.hiddenTitleBar)
         .commands {
@@ -45,19 +55,90 @@ struct XingyuMusicBoxMacApp: App {
     }
 }
 
+private final class MacAppDelegate: NSObject, NSApplicationDelegate {
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        MacMainWindowPresenter.shared.presentMainWindow()
+        return true
+    }
+}
+
 private struct MacMenuBarStatusLabel: View {
     @ObservedObject var viewModel: MacPlayerViewModel
+    @State private var isHoveringControls = false
+
+    private var hasTrack: Bool {
+        viewModel.currentTrack != nil || viewModel.selectedTrack != nil
+    }
 
     var body: some View {
-        HStack(spacing: 5) {
-            Image(systemName: "music.note")
-                .symbolVariant(.circle.fill)
-            if viewModel.isPlaying {
-                Text(viewModel.menuBarDisplayText)
-                    .lineLimit(1)
+        HStack(spacing: 6) {
+            Button {
+                MacMainWindowPresenter.shared.toggleMainWindow()
+            } label: {
+                Image(systemName: "music.note")
+                    .symbolVariant(.circle.fill)
+                    .frame(width: 18, height: 18)
             }
+            .buttonStyle(.plain)
+            .help("打开/关闭星语音乐盒")
+
+            ZStack(alignment: .leading) {
+                MacMenuBarMarqueeText(text: viewModel.menuBarDisplayText, isActive: viewModel.isPlaying)
+                    .opacity(isHoveringControls ? 0 : 1)
+
+                HStack(spacing: 7) {
+                    statusBarButton(systemImage: "backward.end.fill", help: "上一首", isEnabled: hasTrack) {
+                        viewModel.previous()
+                    }
+                    statusBarButton(systemImage: viewModel.isPlaying ? "pause.fill" : "play.fill", help: viewModel.isPlaying ? "暂停" : "播放", isEnabled: hasTrack) {
+                        viewModel.togglePlayback()
+                    }
+                    statusBarButton(systemImage: "forward.end.fill", help: "下一首", isEnabled: hasTrack) {
+                        viewModel.next()
+                    }
+                    statusBarButton(systemImage: viewModel.playbackMode.systemImage, help: viewModel.playbackMode.title, isEnabled: true) {
+                        viewModel.cyclePlaybackMode()
+                    }
+                }
+                .opacity(isHoveringControls ? 1 : 0)
+            }
+            .frame(width: 168, height: 18, alignment: .leading)
         }
+        .frame(width: 196, height: 22, alignment: .leading)
+        .contentShape(Rectangle())
+        .onHover { isHoveringControls = $0 }
         .help(viewModel.menuBarDisplayText)
+    }
+
+    private func statusBarButton(
+        systemImage: String,
+        help: String,
+        isEnabled: Bool,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            Image(systemName: systemImage)
+                .font(.system(size: 11, weight: .semibold))
+                .frame(width: 18, height: 18)
+        }
+        .buttonStyle(.plain)
+        .disabled(!isEnabled)
+        .opacity(isEnabled ? 1 : 0.32)
+        .help(help)
+    }
+}
+
+private struct MacMenuBarMarqueeText: View {
+    let text: String
+    let isActive: Bool
+
+    var body: some View {
+        Text(text)
+            .font(.system(size: 12, weight: .medium))
+            .lineLimit(1)
+            .truncationMode(.tail)
+            .frame(width: 168, height: 18, alignment: .leading)
+            .clipped()
     }
 }
 
@@ -120,8 +201,7 @@ private struct MacMenuBarPlayerPanel: View {
             Divider()
 
             Button {
-                NSApp.activate(ignoringOtherApps: true)
-                NSApp.windows.first?.makeKeyAndOrderFront(nil)
+                MacMainWindowPresenter.shared.presentMainWindow()
             } label: {
                 Label("打开星语音乐盒", systemImage: "macwindow")
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -146,6 +226,48 @@ private struct MacMenuBarPlayerPanel: View {
         .disabled(!isEnabled)
         .opacity(isEnabled ? 1 : 0.34)
         .help(help)
+    }
+}
+
+private final class MacMainWindowPresenter {
+    static let shared = MacMainWindowPresenter()
+
+    private init() {}
+
+    func presentMainWindow() {
+        NSApp.setActivationPolicy(.regular)
+        NSApp.unhide(nil)
+        NSApp.activate(ignoringOtherApps: true)
+
+        if let window = mainWindow() {
+            if window.isMiniaturized {
+                window.deminiaturize(nil)
+            }
+            window.makeKeyAndOrderFront(nil)
+            window.orderFrontRegardless()
+            return
+        }
+
+        NSApp.sendAction(Selector(("newWindowForTab:")), to: nil, from: nil)
+        DispatchQueue.main.async {
+            self.mainWindow()?.makeKeyAndOrderFront(nil)
+        }
+    }
+
+    func toggleMainWindow() {
+        if let window = mainWindow(), window.isVisible, !window.isMiniaturized {
+            window.orderOut(nil)
+            return
+        }
+        presentMainWindow()
+    }
+
+    private func mainWindow() -> NSWindow? {
+        NSApp.windows.first { window in
+            window.title == "星语音乐盒"
+                && window.canBecomeKey
+                && !window.isKind(of: NSPanel.self)
+        }
     }
 }
 

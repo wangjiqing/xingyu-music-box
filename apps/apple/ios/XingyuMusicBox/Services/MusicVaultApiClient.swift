@@ -124,7 +124,8 @@ final class MusicVaultApiClient {
 
     func absoluteURL(forOpenAPIPath path: String) -> URL? {
         guard path.hasPrefix("/") else { return nil }
-        return URL(string: path, relativeTo: config.baseURL)?.absoluteURL
+        guard let baseURL = config.baseURL else { return nil }
+        return URL(string: path, relativeTo: baseURL)?.absoluteURL
     }
 
     private func get<Value: Decodable>(_ path: String, queryItems: [URLQueryItem] = []) async throws -> Value {
@@ -195,7 +196,10 @@ final class MusicVaultApiClient {
         queryItems: [URLQueryItem] = [],
         acceptHeader: String = "application/json"
     ) throws -> URLRequest {
-        var components = URLComponents(url: config.baseURL.appendingOpenAPIPath(path), resolvingAgainstBaseURL: false)
+        guard let baseURL = config.baseURL else {
+            throw MusicVaultApiError.invalidBaseURL
+        }
+        var components = URLComponents(url: baseURL.appendingOpenAPIPath(path), resolvingAgainstBaseURL: false)
         components?.queryItems = queryItems.isEmpty ? nil : queryItems
         guard let url = components?.url else {
             throw MusicVaultApiError.invalidURL
