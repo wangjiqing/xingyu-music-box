@@ -15,8 +15,18 @@ struct MusicVaultConfig: Codable, Equatable {
 
     static var `default`: MusicVaultConfig {
         #if os(macOS)
+        if let runtime = try? VaultConnectionConfigurationStore.shared.loadMusicVaultConfig() {
+            return runtime
+        }
         if let user = MusicVaultConfig.userOpenApiConfig() {
             return user
+        }
+        #else
+        if let runtime = try? VaultConnectionConfigurationStore.shared.loadMusicVaultConfig() {
+            return runtime
+        }
+        if let stored = try? VaultConnectionConfigurationStore.shared.loadConfiguration(), stored.isConfigured {
+            return MusicVaultConfig(baseURLString: stored.baseURLString)
         }
         #endif
         #if DEBUG
@@ -73,15 +83,17 @@ struct MusicVaultConfig: Codable, Equatable {
 
     #if os(macOS)
     static func saveUserConfiguration(baseURLString: String, accessKey: String, secretKey: String) throws {
-        let baseURLString = baseURLString.trimmingCharacters(in: .whitespacesAndNewlines)
+        let baseURLString = try VaultConnectionConfigurationStore.normalizedBaseURLString(baseURLString)
         let accessKey = accessKey.trimmingCharacters(in: .whitespacesAndNewlines)
         let secretKey = secretKey.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !baseURLString.isEmpty, URL(string: baseURLString) != nil else {
-            throw MusicVaultConfigurationError.invalidBaseURL
-        }
         guard !accessKey.isEmpty, !secretKey.isEmpty else {
             throw MusicVaultConfigurationError.missingCredential
         }
+        _ = try VaultConnectionConfigurationStore.shared.save(
+            baseURLString: baseURLString,
+            accessKey: accessKey,
+            secretKey: secretKey
+        )
         guard let url = writableConfigurationURL() ?? userConfigurationURL else {
             throw MusicVaultConfigurationError.configurationPathUnavailable
         }
@@ -140,6 +152,12 @@ struct MusicVaultConfig: Codable, Equatable {
         if let stored = try? decoder.decode(StoredMusicVaultConfig.self, from: data) {
             let credential = stored.accessKey.flatMap { accessKey in
                 stored.secretKey.map { OpenApiCredential(accessKey: accessKey, secretKey: $0) }
+            }
+            if credential == nil,
+               let runtime = try? VaultConnectionConfigurationStore.shared.loadMusicVaultConfig(),
+               runtime.baseURL?.absoluteString == MusicVaultConfig(baseURLString: stored.baseURLString).baseURL?.absoluteString,
+               runtime.credential?.accessKey == stored.accessKey {
+                return runtime
             }
             return MusicVaultConfig(
                 baseURLString: stored.baseURLString,

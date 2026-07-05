@@ -83,6 +83,10 @@ struct SettingsView: View {
                         }
                     }
 
+                    settingsCard(title: "星语音库连接") {
+                        VaultConnectionSettingsView()
+                    }
+
                     settingsCard(title: "星语音库联调") {
                         MusicVaultProbeView()
                     }
@@ -160,15 +164,15 @@ struct SettingsView: View {
                     settingsCard(title: "当前版本") {
                         HStack {
                             VStack(alignment: .leading, spacing: 4) {
-                                Text("MVP")
+                                Text("v0.4.2")
                                     .font(.headline)
                                     .foregroundStyle(XYStyle.text)
-                                Text("SwiftUI · iOS 17 · AVPlayer")
+                                Text("OpenAPI 凭证配置 · SWLRC 逐字歌词")
                                     .font(.caption)
                                     .foregroundStyle(XYStyle.muted)
                             }
                             Spacer()
-                            Text("1.0")
+                            Text("0.4.2")
                                 .font(.headline.monospacedDigit())
                                 .foregroundStyle(XYStyle.accent)
                         }
@@ -264,6 +268,214 @@ private enum SettingsConfirmation: Equatable, Identifiable {
         case .clearAllLocalPreferences:
             return "将清空收藏、最近播放、当前播放状态，并把播放模式恢复为列表循环。不会删除歌曲或音频文件。"
         }
+    }
+}
+
+private struct VaultConnectionSettingsView: View {
+    @State private var baseURLString = ""
+    @State private var accessKey = ""
+    @State private var secretKey = ""
+    @State private var statusMessage = "尚未配置"
+    @State private var isStatusError = false
+    @State private var isTesting = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            SettingsTextField(title: "服务地址", placeholder: MusicVaultConfig.endpointPlaceholder, text: $baseURLString)
+            SettingsTextField(title: "Access Key", placeholder: "xmv_ak_...", text: $accessKey)
+            SettingsSecureField(title: "Secret Key", placeholder: secretKeyPlaceholder, text: $secretKey)
+
+            HStack(spacing: 10) {
+                SettingsCompactButton(title: "保存", systemImage: "checkmark.circle.fill", isDisabled: false) {
+                    save()
+                }
+                SettingsCompactButton(title: "清除凭证", systemImage: "key.slash", isDestructive: true, isDisabled: !hasSavedOrEnteredConfiguration) {
+                    clear()
+                }
+                SettingsCompactButton(title: isTesting ? "测试中" : "测试连接", systemImage: isTesting ? "hourglass" : "network", isDisabled: isTesting || !hasSavedOrEnteredConfiguration) {
+                    testConnection()
+                }
+            }
+
+            Text(statusMessage)
+                .font(.caption)
+                .foregroundStyle(isStatusError ? XYStyle.danger : XYStyle.muted)
+                .lineSpacing(3)
+                .textSelection(.enabled)
+        }
+        .onAppear(perform: load)
+    }
+
+    private var secretKeyPlaceholder: String {
+        secretKey.isEmpty && hasStoredConfiguration ? "不会保存到钥匙串，重启后需重新输入" : "xmv_sk_..."
+    }
+
+    private var hasStoredConfiguration: Bool {
+        (try? VaultConnectionConfigurationStore.shared.loadConfiguration())?.isConfigured == true
+    }
+
+    private var hasSavedOrEnteredConfiguration: Bool {
+        hasStoredConfiguration || !baseURLString.isEmpty || !accessKey.isEmpty || !secretKey.isEmpty
+    }
+
+    private func load() {
+        do {
+            if let configuration = try VaultConnectionConfigurationStore.shared.loadConfiguration() {
+                baseURLString = configuration.baseURLString
+                accessKey = configuration.accessKey
+                secretKey = ""
+                if configuration.isConfigured, VaultConnectionConfigurationStore.shared.hasRuntimeSecretKey() {
+                    statusMessage = "本次运行已启用配置；Secret Key 仅保存在内存中。"
+                    isStatusError = false
+                } else if configuration.isConfigured {
+                    statusMessage = "已保存服务地址和 Access Key；Secret Key 不保存到钥匙串，重启后需重新输入。"
+                    isStatusError = true
+                } else {
+                    statusMessage = "尚未完整配置。"
+                    isStatusError = true
+                }
+            } else {
+                let config = MusicVaultConfig.default
+                baseURLString = config.baseURL?.absoluteString ?? ""
+                accessKey = config.credential?.accessKey ?? ""
+                secretKey = ""
+                statusMessage = config.credential == nil ? "尚未配置移动端凭证。" : "当前使用开发或兼容配置。"
+                isStatusError = config.credential == nil
+            }
+        } catch {
+            statusMessage = error.localizedDescription
+            isStatusError = true
+        }
+    }
+
+    private func save() {
+        do {
+            let savedConfiguration = try VaultConnectionConfigurationStore.shared.save(
+                baseURLString: baseURLString,
+                accessKey: accessKey,
+                secretKey: secretKey
+            )
+            MusicVaultApiClient.reloadSharedConfiguration()
+            baseURLString = savedConfiguration.baseURLString
+            accessKey = savedConfiguration.accessKey
+            secretKey = ""
+            isStatusError = false
+            statusMessage = "已保存服务地址和 Access Key，并在本次运行启用 Secret Key。SK 不会保存到钥匙串或普通配置文件。"
+        } catch {
+            isStatusError = true
+            statusMessage = error.localizedDescription
+        }
+    }
+
+    private func clear() {
+        do {
+            try VaultConnectionConfigurationStore.shared.clear()
+            MusicVaultApiClient.reloadSharedConfiguration()
+            baseURLString = ""
+            accessKey = ""
+            secretKey = ""
+            isStatusError = false
+            statusMessage = "已清除连接配置和本次运行 Secret Key，后续 OpenAPI 请求不会携带旧 AK/SK。"
+        } catch {
+            isStatusError = true
+            statusMessage = error.localizedDescription
+        }
+    }
+
+    private func testConnection() {
+        do {
+            if !secretKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                save()
+            }
+            if hasStoredConfiguration && !VaultConnectionConfigurationStore.shared.hasRuntimeSecretKey() {
+                isStatusError = true
+                statusMessage = "Secret Key 不保存到钥匙串，请重新输入 SK 后再测试连接。"
+                return
+            }
+            isTesting = true
+            statusMessage = "正在连接星语音库..."
+            Task {
+                let result = await MusicVaultProbeRunner().run()
+                await MainActor.run {
+                    isTesting = false
+                    switch result {
+                    case .success(let detail):
+                        isStatusError = false
+                        statusMessage = "连接成功：\(detail.serviceName) \(detail.serviceVersion)。"
+                    case .failure(let message):
+                        isStatusError = true
+                        statusMessage = message
+                    case .idle, .running:
+                        isStatusError = false
+                    }
+                }
+            }
+        }
+    }
+}
+
+private struct SettingsTextField: View {
+    let title: String
+    let placeholder: String
+    @Binding var text: String
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(title)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(XYStyle.muted)
+            TextField(placeholder, text: $text)
+                .textInputAutocapitalization(.never)
+                .autocorrectionDisabled()
+                .font(.subheadline)
+                .foregroundStyle(XYStyle.text)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 10)
+                .background(XYStyle.controlBackground, in: RoundedRectangle(cornerRadius: 8))
+        }
+    }
+}
+
+private struct SettingsSecureField: View {
+    let title: String
+    let placeholder: String
+    @Binding var text: String
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(title)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(XYStyle.muted)
+            SecureField(placeholder, text: $text)
+                .textInputAutocapitalization(.never)
+                .autocorrectionDisabled()
+                .font(.subheadline)
+                .foregroundStyle(XYStyle.text)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 10)
+                .background(XYStyle.controlBackground, in: RoundedRectangle(cornerRadius: 8))
+        }
+    }
+}
+
+private struct SettingsCompactButton: View {
+    let title: String
+    let systemImage: String
+    var isDestructive = false
+    let isDisabled: Bool
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Label(title, systemImage: systemImage)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(isDisabled ? XYStyle.muted : (isDestructive ? XYStyle.danger : XYStyle.accent))
+                .padding(.horizontal, 10)
+                .padding(.vertical, 8)
+                .background(XYStyle.controlBackground, in: RoundedRectangle(cornerRadius: 8))
+        }
+        .buttonStyle(.plain)
+        .disabled(isDisabled)
     }
 }
 
@@ -398,10 +610,9 @@ private struct MusicVaultProbeView: View {
 }
 
 private struct MusicVaultProbeRunner {
-    private let client = MusicVaultApiClient.shared
-
     func run() async -> MusicVaultProbeStatus {
         do {
+            let client = MusicVaultApiClient.shared
             let info = try await client.serverInfo()
             guard info.supportsRequiredReadFeatures else {
                 return .failure("服务已连接，但 OpenAPI 功能不完整：apiVersion=\(info.apiVersion)")

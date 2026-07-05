@@ -8,7 +8,50 @@ struct CachedMusicVaultLyrics: Codable, Equatable {
     let trackId: Int64
     let lyrics: MusicVaultLyrics
     let etag: String?
+    let lyricType: LyricDocumentType
+    let hash: String?
+    let updatedAt: String?
     let fetchedAt: Date
+
+    init(
+        trackId: Int64,
+        lyrics: MusicVaultLyrics,
+        etag: String?,
+        lyricType: LyricDocumentType,
+        hash: String? = nil,
+        updatedAt: String? = nil,
+        fetchedAt: Date = Date()
+    ) {
+        self.trackId = trackId
+        self.lyrics = lyrics
+        self.etag = etag
+        self.lyricType = lyricType
+        self.hash = hash ?? lyrics.hash
+        self.updatedAt = updatedAt ?? lyrics.updatedAt
+        self.fetchedAt = fetchedAt
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case trackId
+        case lyrics
+        case etag
+        case lyricType
+        case hash
+        case updatedAt
+        case fetchedAt
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        trackId = try container.decode(Int64.self, forKey: .trackId)
+        lyrics = try container.decode(MusicVaultLyrics.self, forKey: .lyrics)
+        etag = try container.decodeIfPresent(String.self, forKey: .etag)
+        lyricType = try container.decodeIfPresent(LyricDocumentType.self, forKey: .lyricType)
+            ?? (lyrics.format?.localizedCaseInsensitiveContains("SWLRC") == true ? .swlrc : .lrc)
+        hash = try container.decodeIfPresent(String.self, forKey: .hash) ?? lyrics.hash
+        updatedAt = try container.decodeIfPresent(String.self, forKey: .updatedAt) ?? lyrics.updatedAt
+        fetchedAt = try container.decode(Date.self, forKey: .fetchedAt)
+    }
 }
 
 struct CachedMusicVaultArtwork: Codable, Equatable {
@@ -46,6 +89,7 @@ final class MusicVaultCacheStore {
     private let trackMatchesKey = "xy.musicVault.trackMatches.v1"
     private let trackDetailsKey = "xy.musicVault.trackDetails.v1"
     private let lyricsKey = "xy.musicVault.lyrics.v1"
+    private let typedLyricsKey = "xy.musicVault.lyrics.v2"
     private let artworkIndexKey = "xy.musicVault.artworkIndex.v1"
 
     init(defaults: UserDefaults = .standard, fileManager: FileManager = .default) {
@@ -71,14 +115,20 @@ final class MusicVaultCacheStore {
         write(syncState, forKey: syncStateKey)
     }
 
-    func cachedLyrics(trackId: Int64) -> CachedMusicVaultLyrics? {
-        cachedLyricsIndex()[String(trackId)]
+    func cachedLyrics(trackId: Int64, type: LyricDocumentType = .lrc) -> CachedMusicVaultLyrics? {
+        typedCachedLyricsIndex()[cacheKey(trackId: trackId, type: type)]
+            ?? (type == .lrc ? cachedLyricsIndex()[String(trackId)] : nil)
     }
 
-    func save(lyrics: MusicVaultLyrics, etag: String?, trackId: Int64) {
-        var values = cachedLyricsIndex()
-        values[String(trackId)] = CachedMusicVaultLyrics(trackId: trackId, lyrics: lyrics, etag: etag, fetchedAt: Date())
-        write(values, forKey: lyricsKey)
+    func save(lyrics: MusicVaultLyrics, etag: String?, trackId: Int64, type: LyricDocumentType) {
+        var values = typedCachedLyricsIndex()
+        values[cacheKey(trackId: trackId, type: type)] = CachedMusicVaultLyrics(
+            trackId: trackId,
+            lyrics: lyrics,
+            etag: etag,
+            lyricType: type
+        )
+        write(values, forKey: typedLyricsKey)
     }
 
     func cachedTrackMatch(for query: MusicVaultTrackMatchQuery) -> CachedMusicVaultTrackMatch? {
@@ -127,7 +177,7 @@ final class MusicVaultCacheStore {
     }
 
     func clearAll() {
-        [serverInfoKey, syncStateKey, trackMatchesKey, trackDetailsKey, lyricsKey, artworkIndexKey].forEach(defaults.removeObject(forKey:))
+        [serverInfoKey, syncStateKey, trackMatchesKey, trackDetailsKey, lyricsKey, typedLyricsKey, artworkIndexKey].forEach(defaults.removeObject(forKey:))
         if let directory = try? artworkDirectory(), fileManager.fileExists(atPath: directory.path) {
             try? fileManager.removeItem(at: directory)
         }
@@ -136,6 +186,14 @@ final class MusicVaultCacheStore {
 
     private func cachedLyricsIndex() -> [String: CachedMusicVaultLyrics] {
         read([String: CachedMusicVaultLyrics].self, forKey: lyricsKey) ?? [:]
+    }
+
+    private func typedCachedLyricsIndex() -> [String: CachedMusicVaultLyrics] {
+        read([String: CachedMusicVaultLyrics].self, forKey: typedLyricsKey) ?? [:]
+    }
+
+    private func cacheKey(trackId: Int64, type: LyricDocumentType) -> String {
+        "\(trackId)-\(type.rawValue)"
     }
 
     private func cachedTrackMatches() -> [String: CachedMusicVaultTrackMatch] {

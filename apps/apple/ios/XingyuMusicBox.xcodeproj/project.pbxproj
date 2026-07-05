@@ -38,6 +38,9 @@
 		010000000000000000000023 /* MusicVaultCacheStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000023 /* MusicVaultCacheStore.swift */; };
 		010000000000000000000024 /* MusicVaultConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000024 /* MusicVaultConfig.swift */; };
 		010000000000000000000029 /* OpenApiHmacSigner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000029 /* OpenApiHmacSigner.swift */; };
+		010000000000000000000033 /* VaultConnectionConfigurationStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000033 /* VaultConnectionConfigurationStore.swift */; };
+		010000000000000000000034 /* SWLRCParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000034 /* SWLRCParser.swift */; };
+		010000000000000000000035 /* ShufflePlaybackQueue.swift in Sources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000035 /* ShufflePlaybackQueue.swift */; };
 		010000000000000000000025 /* MusicVaultLyricsService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000025 /* MusicVaultLyricsService.swift */; };
 		010000000000000000000026 /* MusicVaultArtworkService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000026 /* MusicVaultArtworkService.swift */; };
 		010000000000000000000027 /* MusicVaultMetadataService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000027 /* MusicVaultMetadataService.swift */; };
@@ -61,6 +64,11 @@
 		011000000000000000000010 /* PlaybackStateStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000015 /* PlaybackStateStore.swift */; };
 		011000000000000000000011 /* NowPlayingInfoManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 02000000000000000000001B /* NowPlayingInfoManager.swift */; };
 		011000000000000000000012 /* RemoteCommandManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 02000000000000000000001D /* RemoteCommandManager.swift */; };
+		011000000000000000000013 /* VaultConnectionConfigurationStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000033 /* VaultConnectionConfigurationStore.swift */; };
+		011000000000000000000014 /* SWLRCParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000034 /* SWLRCParser.swift */; };
+		011000000000000000000015 /* MusicVaultLyricsService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000025 /* MusicVaultLyricsService.swift */; };
+		011000000000000000000016 /* MusicVaultCacheStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000023 /* MusicVaultCacheStore.swift */; };
+		011000000000000000000017 /* ShufflePlaybackQueue.swift in Sources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000035 /* ShufflePlaybackQueue.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -95,6 +103,9 @@
 		020000000000000000000023 /* MusicVaultCacheStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MusicVaultCacheStore.swift; sourceTree = "<group>"; };
 		020000000000000000000024 /* MusicVaultConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MusicVaultConfig.swift; sourceTree = "<group>"; };
 		020000000000000000000029 /* OpenApiHmacSigner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenApiHmacSigner.swift; sourceTree = "<group>"; };
+		020000000000000000000033 /* VaultConnectionConfigurationStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VaultConnectionConfigurationStore.swift; sourceTree = "<group>"; };
+		020000000000000000000034 /* SWLRCParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SWLRCParser.swift; sourceTree = "<group>"; };
+		020000000000000000000035 /* ShufflePlaybackQueue.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShufflePlaybackQueue.swift; sourceTree = "<group>"; };
 		02000000000000000000002A /* OpenApiConfig.example.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = OpenApiConfig.example.plist; sourceTree = "<group>"; };
 		02000000000000000000002B /* OpenApiConfig.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = OpenApiConfig.plist; sourceTree = "<group>"; };
 		020000000000000000000025 /* MusicVaultLyricsService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MusicVaultLyricsService.swift; sourceTree = "<group>"; };
@@ -182,7 +193,10 @@
 				02000000000000000000001D /* RemoteCommandManager.swift */,
 				02000000000000000000001F /* LyricsCacheStore.swift */,
 				020000000000000000000020 /* LRCParser.swift */,
+				020000000000000000000034 /* SWLRCParser.swift */,
+				020000000000000000000035 /* ShufflePlaybackQueue.swift */,
 				020000000000000000000024 /* MusicVaultConfig.swift */,
+				020000000000000000000033 /* VaultConnectionConfigurationStore.swift */,
 				020000000000000000000029 /* OpenApiHmacSigner.swift */,
 				020000000000000000000022 /* MusicVaultApiClient.swift */,
 				020000000000000000000023 /* MusicVaultCacheStore.swift */,
@@ -462,10 +476,13 @@
 				01000000000000000000001C /* RemoteCommandManager.swift in Sources */,
 				01000000000000000000001D /* LyricsCacheStore.swift in Sources */,
 				01000000000000000000001E /* LRCParser.swift in Sources */,
+				010000000000000000000034 /* SWLRCParser.swift in Sources */,
+				010000000000000000000035 /* ShufflePlaybackQueue.swift in Sources */,
 				010000000000000000000021 /* MusicVaultDTOs.swift in Sources */,
 				010000000000000000000022 /* MusicVaultApiClient.swift in Sources */,
 				010000000000000000000023 /* MusicVaultCacheStore.swift in Sources */,
 				010000000000000000000024 /* MusicVaultConfig.swift in Sources */,
+				010000000000000000000033 /* VaultConnectionConfigurationStore.swift in Sources */,
 				010000000000000000000029 /* OpenApiHmacSigner.swift in Sources */,
 				010000000000000000000025 /* MusicVaultLyricsService.swift in Sources */,
 				010000000000000000000026 /* MusicVaultArtworkService.swift in Sources */,
@@ -485,13 +502,18 @@
 				011000000000000000000008 /* AudioSource.swift in Sources */,
 				011000000000000000000009 /* Song.swift in Sources */,
 				01100000000000000000000A /* LRCParser.swift in Sources */,
+				011000000000000000000014 /* SWLRCParser.swift in Sources */,
+				011000000000000000000017 /* ShufflePlaybackQueue.swift in Sources */,
 				011000000000000000000010 /* PlaybackStateStore.swift in Sources */,
 				011000000000000000000011 /* NowPlayingInfoManager.swift in Sources */,
 				011000000000000000000012 /* RemoteCommandManager.swift in Sources */,
 				011000000000000000000004 /* MusicVaultDTOs.swift in Sources */,
 				011000000000000000000005 /* MusicVaultApiClient.swift in Sources */,
+				011000000000000000000016 /* MusicVaultCacheStore.swift in Sources */,
 				011000000000000000000006 /* MusicVaultConfig.swift in Sources */,
+				011000000000000000000013 /* VaultConnectionConfigurationStore.swift in Sources */,
 				011000000000000000000007 /* OpenApiHmacSigner.swift in Sources */,
+				011000000000000000000015 /* MusicVaultLyricsService.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -637,7 +659,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 0.4.1;
+				MARKETING_VERSION = 0.4.2;
 				PRODUCT_BUNDLE_IDENTIFIER = com.xingyu.musicbox;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -668,7 +690,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 0.4.1;
+				MARKETING_VERSION = 0.4.2;
 				PRODUCT_BUNDLE_IDENTIFIER = com.xingyu.musicbox;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -699,7 +721,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = 0.4.1;
+				MARKETING_VERSION = 0.4.2;
 				PRODUCT_BUNDLE_IDENTIFIER = com.xingyu.musicbox.mac;
 				PRODUCT_NAME = "星语音乐盒";
 				SDKROOT = macosx;
@@ -731,7 +753,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = 0.4.1;
+				MARKETING_VERSION = 0.4.2;
 				PRODUCT_BUNDLE_IDENTIFIER = com.xingyu.musicbox.mac;
 				PRODUCT_NAME = "星语音乐盒";
 				SDKROOT = macosx;

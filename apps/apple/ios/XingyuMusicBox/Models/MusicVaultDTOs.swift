@@ -103,6 +103,9 @@ struct MusicVaultLyricsMeta: Codable, Equatable {
     let hash: String?
     let etag: String?
     let updatedAt: String?
+    let wordLyricsAvailable: Bool?
+    let wordLyricsUrl: String?
+    let lyricsVersionSource: String?
 }
 
 struct MusicVaultArtworkMeta: Codable, Equatable {

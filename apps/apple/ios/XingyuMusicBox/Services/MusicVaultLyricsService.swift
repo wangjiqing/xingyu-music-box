@@ -28,29 +28,88 @@ final class MusicVaultLyricsService {
             debugLog("星语音库 match/track 命中：trackId=\(track.id), score=\(match.score)")
 
             let meta = try await client.lyricsMeta(trackId: track.id)
-            debugLog("星语音库 lyrics/meta available=\(meta.available)")
+            debugLog("星语音库 lyrics/meta available=\(meta.available), wordLyricsAvailable=\(meta.wordLyricsAvailable == true)")
             guard meta.available else {
                 debugLog("星语音库无歌词，停止联网歌词获取")
                 return nil
             }
 
-            let cached = MusicVaultCacheStore.shared.cachedLyrics(trackId: track.id)
-            let response = try await client.lyrics(trackId: track.id, ifNoneMatch: cached?.etag)
-            if response.notModified, let cached {
-                debugLog("星语音库歌词 ETag 未变化，使用 MusicVaultCacheStore 缓存")
-                return MusicVaultLyricsFetchResult(lyrics: cached.lyrics, track: track, etag: cached.etag)
+            if meta.wordLyricsAvailable == true {
+                do {
+                    if let result = try await fetchWordLyrics(track: track) {
+                        return result
+                    }
+                } catch {
+                    debugLog("星语音库 SWLRC 不可用，回退 LRC：\(error.localizedDescription)")
+                }
             }
 
-            guard let lyrics = response.value, lyrics.content.nilIfBlank != nil else {
-                debugLog("星语音库歌词正文为空，停止联网歌词获取")
-                return nil
-            }
-
-            MusicVaultCacheStore.shared.save(lyrics: lyrics, etag: response.etag, trackId: track.id)
-            debugLog("成功获取星语音库歌词：trackId=\(track.id), format=\(lyrics.format ?? "unknown")")
-            return MusicVaultLyricsFetchResult(lyrics: lyrics, track: track, etag: response.etag)
+            return try await fetchLineLyrics(track: track)
         } catch {
             debugLog("星语音库歌词失败，停止联网歌词获取：\(error.localizedDescription)")
+            return nil
+        }
+    }
+
+    private func fetchWordLyrics(track: MusicVaultTrack) async throws -> MusicVaultLyricsFetchResult? {
+        let cached = MusicVaultCacheStore.shared.cachedLyrics(trackId: track.id, type: .swlrc)
+        let response = try await client.wordLyrics(trackId: track.id, ifNoneMatch: cached?.etag)
+        if response.notModified, let cached {
+            debugLog("星语音库 SWLRC ETag 未变化，使用 MusicVaultCacheStore 缓存")
+            return MusicVaultLyricsFetchResult(lyrics: cached.lyrics, track: track, etag: cached.etag, lyricType: .swlrc)
+        }
+        guard let lyrics = response.value, lyrics.content.nilIfBlank != nil else {
+            debugLog("星语音库 SWLRC 正文为空")
+            return nil
+        }
+        _ = try ParsedLyricsDocument.swlrc(
+            rawText: lyrics.content,
+            sourceDescription: "星语音库 · SWLRC",
+            hash: lyrics.hash,
+            etag: response.etag,
+            updatedAt: lyrics.updatedAt
+        )
+        MusicVaultCacheStore.shared.save(lyrics: lyrics, etag: response.etag, trackId: track.id, type: .swlrc)
+        debugLog("成功获取星语音库 SWLRC：trackId=\(track.id)")
+        return MusicVaultLyricsFetchResult(lyrics: lyrics, track: track, etag: response.etag, lyricType: .swlrc)
+    }
+
+    private func fetchLineLyrics(track: MusicVaultTrack) async throws -> MusicVaultLyricsFetchResult? {
+        let cached = MusicVaultCacheStore.shared.cachedLyrics(trackId: track.id, type: .lrc)
+        let response = try await client.lyrics(trackId: track.id, ifNoneMatch: cached?.etag)
+        if response.notModified, let cached {
+            debugLog("星语音库 LRC ETag 未变化，使用 MusicVaultCacheStore 缓存")
+            return MusicVaultLyricsFetchResult(lyrics: cached.lyrics, track: track, etag: cached.etag, lyricType: .lrc)
+        }
+
+        guard let lyrics = response.value, lyrics.content.nilIfBlank != nil else {
+            debugLog("星语音库 LRC 正文为空")
+            return nil
+        }
+
+        let parsed = LRCParser.parse(lyrics.content)
+        guard !parsed.isEmpty else {
+            debugLog("星语音库 LRC 无有效行级时间")
+            return nil
+        }
+
+        MusicVaultCacheStore.shared.save(lyrics: lyrics, etag: response.etag, trackId: track.id, type: .lrc)
+        debugLog("成功获取星语音库 LRC：trackId=\(track.id)")
+        return MusicVaultLyricsFetchResult(lyrics: lyrics, track: track, etag: response.etag, lyricType: .lrc)
+    }
+
+    func fetchLyrics(for track: MusicVaultTrack) async -> MusicVaultLyricsFetchResult? {
+        do {
+            let meta = try await client.lyricsMeta(trackId: track.id)
+            guard meta.available else {
+                return nil
+            }
+            if meta.wordLyricsAvailable == true,
+               let result = try? await fetchWordLyrics(track: track) {
+                return result
+            }
+            return try await fetchLineLyrics(track: track)
+        } catch {
             return nil
         }
     }
@@ -114,6 +173,7 @@ struct MusicVaultLyricsFetchResult {
     let lyrics: MusicVaultLyrics
     let track: MusicVaultTrack?
     let etag: String?
+    let lyricType: LyricDocumentType
 }
 
 private extension String {

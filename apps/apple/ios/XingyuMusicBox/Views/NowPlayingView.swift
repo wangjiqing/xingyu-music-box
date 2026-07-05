@@ -1007,20 +1007,25 @@ private struct LyricsColumn: View {
     @State private var autoScrollEnabled = true
     @State private var resumeAutoScrollTask: Task<Void, Never>?
 
-    private var parsedLrcLines: [LyricLine]? {
-        makeParsedLrcLines(from: cachedLyrics)
-    }
-
-    private var currentLyricLineIndex: Int? {
-        makeCurrentLyricLineIndex(in: parsedLrcLines, currentTime: currentTime)
+    private var parsedLyricsDocument: ParsedLyricsDocument? {
+        makeParsedLyricsDocument(from: cachedLyrics)
     }
 
     private var lyricsState: LyricsDisplayState {
         if let cachedLyrics {
             let badgePrefix = cachedLyrics.source == .musicVault ? "星语音库" : "历史缓存"
+            let typeBadge: String
+            switch cachedLyrics.lyricType {
+            case .swlrc:
+                typeBadge = "SWLRC"
+            case .lrc:
+                typeBadge = "LRC"
+            case .plain, .instrumental:
+                typeBadge = ""
+            }
             return LyricsDisplayState(
                 text: cachedLyrics.displayText,
-                badge: cachedLyrics.lyricType == .lrc ? "\(badgePrefix) · LRC" : badgePrefix,
+                badge: typeBadge.isEmpty ? badgePrefix : "\(badgePrefix) · \(typeBadge)",
                 isInstrumental: cachedLyrics.lyricType == .instrumental
             )
         }
@@ -1062,8 +1067,8 @@ private struct LyricsColumn: View {
             .padding(.bottom, 10)
 
             // 歌词内容区域
-            if let lrcLines = parsedLrcLines {
-                lrcScrollArea(lrcLines)
+            if let lyricDocument = parsedLyricsDocument {
+                timedScrollArea(lyricDocument)
             } else if let text = lyricsState.text {
                 plainLyricsArea(text)
             } else {
@@ -1094,54 +1099,60 @@ private struct LyricsColumn: View {
         }
     }
 
-    // MARK: LRC 滚动区
+    // MARK: Timed lyrics scroll area
 
-    private func lrcScrollArea(_ lines: [LyricLine]) -> some View {
+    private func timedScrollArea(_ document: ParsedLyricsDocument) -> some View {
         ScrollViewReader { proxy in
-            ScrollView {
-                VStack(alignment: .leading, spacing: 0) {
-                    Color.clear
-                        .frame(height: 1)
-                        .id("lyricsTop")
+            SmoothLyricTimeReader(currentTime: currentTime, duration: playbackDuration, isPlaying: isPlaying) { smoothTime in
+                let smoothLineIndex = makeCurrentTimedLyricLineIndex(in: document.lines, currentTime: smoothTime)
 
-                    LrcLyricsTimelineView(
-                        lines: lines,
-                        currentIndex: currentLyricLineIndex,
-                        displayStyle: .spacious,
-                        onLineTap: { line in
-                            resumeAutoScrollImmediately()
-                            onSeek(line.time)
-                            withAnimation(.easeInOut(duration: 0.22)) {
-                                proxy.scrollTo(lyricLineScrollID(line.index), anchor: .center)
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 0) {
+                        Color.clear
+                            .frame(height: 1)
+                            .id("lyricsTop")
+
+                        TimedLyricsTimelineView(
+                            lines: document.lines,
+                            documentType: document.type,
+                            currentTime: smoothTime,
+                            currentIndex: smoothLineIndex,
+                            displayStyle: .spacious,
+                            onLineTap: { line in
+                                resumeAutoScrollImmediately()
+                                onSeek(line.startTime)
+                                withAnimation(.easeInOut(duration: 0.22)) {
+                                    proxy.scrollTo(lyricLineScrollID(line.index), anchor: .center)
+                                }
                             }
-                        }
-                    )
+                        )
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 12)
                 }
-                .padding(.horizontal, 12)
-                .padding(.vertical, 12)
-            }
-            .onAppear {
-                if let currentLyricLineIndex {
-                    proxy.scrollTo(lyricLineScrollID(currentLyricLineIndex), anchor: .center)
-                } else {
+                .onAppear {
+                    if let smoothLineIndex {
+                        proxy.scrollTo(lyricLineScrollID(smoothLineIndex), anchor: .center)
+                    } else {
+                        proxy.scrollTo("lyricsTop", anchor: .top)
+                    }
+                }
+                .onChange(of: song.id) { _, _ in
+                    resumeAutoScrollImmediately()
                     proxy.scrollTo("lyricsTop", anchor: .top)
                 }
-            }
-            .onChange(of: song.id) { _, _ in
-                resumeAutoScrollImmediately()
-                proxy.scrollTo("lyricsTop", anchor: .top)
-            }
-            .onChange(of: currentLyricLineIndex) { _, newValue in
-                guard autoScrollEnabled, let newValue else { return }
-                withAnimation(.easeInOut(duration: 0.24)) {
-                    proxy.scrollTo(lyricLineScrollID(newValue), anchor: .center)
+                .onChange(of: smoothLineIndex) { _, newValue in
+                    guard autoScrollEnabled, let newValue else { return }
+                    withAnimation(.interactiveSpring(response: 0.52, dampingFraction: 0.86, blendDuration: 0.12)) {
+                        proxy.scrollTo(lyricLineScrollID(newValue), anchor: .center)
+                    }
                 }
+                .simultaneousGesture(
+                    DragGesture(minimumDistance: 6)
+                        .onChanged { _ in suspendAutoScrollTemporarily() }
+                        .onEnded { _ in scheduleAutoScrollResume() }
+                )
             }
-            .simultaneousGesture(
-                DragGesture(minimumDistance: 6)
-                    .onChanged { _ in suspendAutoScrollTemporarily() }
-                    .onEnded { _ in scheduleAutoScrollResume() }
-            )
         }
         .frame(maxHeight: .infinity)
     }
@@ -1232,20 +1243,25 @@ struct LyricsPageView: View {
     @State private var autoScrollEnabled = true
     @State private var resumeAutoScrollTask: Task<Void, Never>?
 
-    private var parsedLrcLines: [LyricLine]? {
-        makeParsedLrcLines(from: cachedLyrics)
-    }
-
-    private var currentLyricLineIndex: Int? {
-        makeCurrentLyricLineIndex(in: parsedLrcLines, currentTime: currentTime)
+    private var parsedLyricsDocument: ParsedLyricsDocument? {
+        makeParsedLyricsDocument(from: cachedLyrics)
     }
 
     private var lyricsState: LyricsDisplayState {
         if let cachedLyrics {
             let badgePrefix = cachedLyrics.source == .musicVault ? "星语音库" : "历史缓存"
+            let typeBadge: String
+            switch cachedLyrics.lyricType {
+            case .swlrc:
+                typeBadge = "SWLRC"
+            case .lrc:
+                typeBadge = "LRC"
+            case .plain, .instrumental:
+                typeBadge = ""
+            }
             return LyricsDisplayState(
                 text: cachedLyrics.displayText,
-                badge: cachedLyrics.lyricType == .lrc ? "\(badgePrefix) · LRC" : badgePrefix,
+                badge: typeBadge.isEmpty ? badgePrefix : "\(badgePrefix) · \(typeBadge)",
                 isInstrumental: cachedLyrics.lyricType == .instrumental
             )
         }
@@ -1298,103 +1314,109 @@ struct LyricsPageView: View {
             .padding(.horizontal, 4)
 
             ScrollViewReader { proxy in
-                ZStack(alignment: .bottom) {
-                    ScrollView {
-                        VStack(alignment: .leading, spacing: 0) {
-                            Color.clear
-                                .frame(height: 1)
-                                .id("lyricsTop")
+                SmoothLyricTimeReader(currentTime: currentTime, duration: playbackDuration, isPlaying: isPlaying) { smoothTime in
+                    let smoothLineIndex = makeCurrentTimedLyricLineIndex(in: parsedLyricsDocument?.lines, currentTime: smoothTime)
 
-                            if let lrcLines = parsedLrcLines {
-                                LyricsBadgeView(text: lyricsState.badge)
-                                LrcLyricsTimelineView(
-                                    lines: lrcLines,
-                                    currentIndex: currentLyricLineIndex,
-                                    displayStyle: displayStyle,
-                                    onLineTap: { line in
-                                        resumeAutoScrollImmediately()
-                                        onSeek(line.time)
-                                        withAnimation(.easeInOut(duration: 0.22)) {
-                                            proxy.scrollTo(lyricLineScrollID(line.index), anchor: .center)
+                    ZStack(alignment: .bottom) {
+                        ScrollView {
+                            VStack(alignment: .leading, spacing: 0) {
+                                Color.clear
+                                    .frame(height: 1)
+                                    .id("lyricsTop")
+
+                                if let lyricDocument = parsedLyricsDocument {
+                                    LyricsBadgeView(text: lyricsState.badge)
+                                    TimedLyricsTimelineView(
+                                        lines: lyricDocument.lines,
+                                        documentType: lyricDocument.type,
+                                        currentTime: smoothTime,
+                                        currentIndex: smoothLineIndex,
+                                        displayStyle: displayStyle,
+                                        onLineTap: { line in
+                                            resumeAutoScrollImmediately()
+                                            onSeek(line.startTime)
+                                            withAnimation(.easeInOut(duration: 0.22)) {
+                                                proxy.scrollTo(lyricLineScrollID(line.index), anchor: .center)
+                                            }
                                         }
+                                    )
+                                } else if let lyricsText = lyricsState.text {
+                                    LyricsBadgeView(text: lyricsState.badge)
+                                    PlainLyricsTextView(
+                                        text: lyricsText,
+                                        isInstrumental: lyricsState.isInstrumental,
+                                        displayStyle: displayStyle
+                                    )
+                                } else {
+                                    NoLyricsView(song: song, isAutoFetchingLyrics: isAutoFetchingLyrics) {
+                                        isSearchPresented = true
                                     }
-                                )
-                            } else if let lyricsText = lyricsState.text {
-                                LyricsBadgeView(text: lyricsState.badge)
-                                PlainLyricsTextView(
-                                    text: lyricsText,
-                                    isInstrumental: lyricsState.isInstrumental,
-                                    displayStyle: displayStyle
+                                        .frame(maxWidth: .infinity)
+                                        .padding(.vertical, 18)
+                                }
+
+                                Color.clear
+                                    .frame(height: displayStyle == .spacious ? 140 : 96)
+                            }
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, displayStyle == .spacious ? 30 : 18)
+                        }
+                        .scrollIndicators(.hidden)
+                        .mask {
+                            if displayStyle == .spacious {
+                                LinearGradient(
+                                    stops: [
+                                        .init(color: .clear, location: 0.0),
+                                        .init(color: .black, location: 0.12),
+                                        .init(color: .black, location: 0.84),
+                                        .init(color: .clear, location: 1.0)
+                                    ],
+                                    startPoint: .top,
+                                    endPoint: .bottom
                                 )
                             } else {
-                                NoLyricsView(song: song, isAutoFetchingLyrics: isAutoFetchingLyrics) {
-                                    isSearchPresented = true
+                                Rectangle()
+                            }
+                        }
+                        .simultaneousGesture(
+                            DragGesture(minimumDistance: 6)
+                                .onChanged { _ in
+                                    suspendAutoScrollTemporarily()
                                 }
-                                    .frame(maxWidth: .infinity)
-                                    .padding(.vertical, 18)
+                                .onEnded { _ in
+                                    scheduleAutoScrollResume()
+                                }
+                        )
+                        .onAppear {
+                            if let smoothLineIndex {
+                                proxy.scrollTo(lyricLineScrollID(smoothLineIndex), anchor: .center)
+                            } else {
+                                proxy.scrollTo("lyricsTop", anchor: .top)
                             }
-
-                            Color.clear
-                                .frame(height: displayStyle == .spacious ? 140 : 96)
                         }
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, displayStyle == .spacious ? 30 : 18)
-                    }
-                    .scrollIndicators(.hidden)
-                    .mask {
-                        if displayStyle == .spacious {
-                            LinearGradient(
-                                stops: [
-                                    .init(color: .clear, location: 0.0),
-                                    .init(color: .black, location: 0.12),
-                                    .init(color: .black, location: 0.84),
-                                    .init(color: .clear, location: 1.0)
-                                ],
-                                startPoint: .top,
-                                endPoint: .bottom
-                            )
-                        } else {
-                            Rectangle()
-                        }
-                    }
-                    .simultaneousGesture(
-                        DragGesture(minimumDistance: 6)
-                            .onChanged { _ in
-                                suspendAutoScrollTemporarily()
-                            }
-                            .onEnded { _ in
-                                scheduleAutoScrollResume()
-                            }
-                    )
-                    .onAppear {
-                        if let currentLyricLineIndex {
-                            proxy.scrollTo(lyricLineScrollID(currentLyricLineIndex), anchor: .center)
-                        } else {
+                        .onChange(of: song.id) { _, _ in
+                            resumeAutoScrollImmediately()
                             proxy.scrollTo("lyricsTop", anchor: .top)
                         }
-                    }
-                    .onChange(of: song.id) { _, _ in
-                        resumeAutoScrollImmediately()
-                        proxy.scrollTo("lyricsTop", anchor: .top)
-                    }
-                    .onChange(of: currentLyricLineIndex) { _, newValue in
-                        guard autoScrollEnabled, parsedLrcLines != nil, let newValue else { return }
-                        withAnimation(.easeInOut(duration: 0.24)) {
-                            proxy.scrollTo(lyricLineScrollID(newValue), anchor: .center)
+                        .onChange(of: smoothLineIndex) { _, newValue in
+                            guard autoScrollEnabled, parsedLyricsDocument != nil, let newValue else { return }
+                            withAnimation(.interactiveSpring(response: 0.52, dampingFraction: 0.86, blendDuration: 0.12)) {
+                                proxy.scrollTo(lyricLineScrollID(newValue), anchor: .center)
+                            }
                         }
-                    }
 
-                    if showsMiniControlBar {
-                        LyricsMiniControlBar(
-                            song: song,
-                            isPlaying: isPlaying,
-                            currentTime: currentTime,
-                            duration: playbackDuration,
-                            onPrevious: onPrevious,
-                            onTogglePlayback: onTogglePlayback,
-                            onNext: onNext
-                        )
-                        .padding(.horizontal, 2)
+                        if showsMiniControlBar {
+                            LyricsMiniControlBar(
+                                song: song,
+                                isPlaying: isPlaying,
+                                currentTime: currentTime,
+                                duration: playbackDuration,
+                                onPrevious: onPrevious,
+                                onTogglePlayback: onTogglePlayback,
+                                onNext: onNext
+                            )
+                            .padding(.horizontal, 2)
+                        }
                     }
                 }
             }
@@ -1491,13 +1513,44 @@ private struct VisibleLyricWindow {
     let next: LyricLine?
 }
 
-private func makeParsedLrcLines(from cachedLyrics: CachedLyrics?) -> [LyricLine]? {
-    guard let cachedLyrics,
-          cachedLyrics.lyricType == .lrc else {
+private func makeParsedLyricsDocument(from cachedLyrics: CachedLyrics?) -> ParsedLyricsDocument? {
+    guard let cachedLyrics else {
         return nil
     }
 
-    let lines = LRCParser.parse(cachedLyrics.lyricText)
+    switch cachedLyrics.lyricType {
+    case .swlrc:
+        if let document = try? ParsedLyricsDocument.swlrc(
+            rawText: cachedLyrics.lyricText,
+            sourceDescription: "星语音库 · SWLRC",
+            hash: cachedLyrics.resourceHash,
+            etag: cachedLyrics.resourceEtag,
+            updatedAt: cachedLyrics.updatedAt
+        ), !document.lines.isEmpty {
+            return document
+        }
+        return nil
+    case .lrc:
+        let document = ParsedLyricsDocument.lrc(
+            rawText: cachedLyrics.lyricText,
+            sourceDescription: "星语音库 · LRC",
+            hash: cachedLyrics.resourceHash,
+            etag: cachedLyrics.resourceEtag,
+            updatedAt: cachedLyrics.updatedAt
+        )
+        return document.lines.isEmpty ? nil : document
+    case .plain, .instrumental:
+        return nil
+    }
+}
+
+private func makeParsedLrcLines(from cachedLyrics: CachedLyrics?) -> [LyricLine]? {
+    guard let document = makeParsedLyricsDocument(from: cachedLyrics) else {
+        return nil
+    }
+    let lines = document.lines.map {
+        LyricLine(id: $0.id, time: $0.startTime, text: $0.text, index: $0.index)
+    }
     return lines.isEmpty ? nil : lines
 }
 
@@ -1508,6 +1561,22 @@ private func makeCurrentLyricLineIndex(in lines: [LyricLine]?, currentTime: Time
 
     return lines.last(where: { $0.time <= currentTime })?.index
         ?? (currentTime < lines[0].time ? nil : lines[0].index)
+}
+
+private func makeCurrentTimedLyricLineIndex(in lines: [TimedLyricLine]?, currentTime: TimeInterval) -> Int? {
+    guard let lines, !lines.isEmpty else {
+        return nil
+    }
+
+    if let current = lines.last(where: { line in
+        if let endTime = line.endTime {
+            return line.startTime <= currentTime && currentTime < endTime
+        }
+        return line.startTime <= currentTime
+    }) {
+        return current.index
+    }
+    return currentTime < lines[0].startTime ? nil : lines[0].index
 }
 
 private func visibleLyricWindow(in lines: [LyricLine]?, currentTime: TimeInterval) -> VisibleLyricWindow? {
@@ -1570,11 +1639,64 @@ private struct PlainLyricsTextView: View {
     }
 }
 
-private struct LrcLyricsTimelineView: View {
-    let lines: [LyricLine]
+private struct SmoothLyricTimeReader<Content: View>: View {
+    let currentTime: TimeInterval
+    let duration: TimeInterval
+    let isPlaying: Bool
+    @ViewBuilder let content: (TimeInterval) -> Content
+
+    @State private var anchorTime: TimeInterval = 0
+    @State private var anchorDate = Date()
+
+    var body: some View {
+        TimelineView(.animation(minimumInterval: 1.0 / 60.0, paused: false)) { context in
+            content(displayTime(at: context.date))
+        }
+        .onAppear {
+            resetAnchor(to: currentTime, at: Date())
+        }
+        .onChange(of: currentTime) { _, newValue in
+            let now = Date()
+            let displayed = displayTime(at: now)
+            if !isPlaying || abs(displayed - newValue) > 0.28 {
+                resetAnchor(to: newValue, at: now)
+            }
+        }
+        .onChange(of: isPlaying) { _, _ in
+            resetAnchor(to: currentTime, at: Date())
+        }
+        .onChange(of: duration) { _, _ in
+            resetAnchor(to: currentTime, at: Date())
+        }
+    }
+
+    private func displayTime(at date: Date) -> TimeInterval {
+        let rawTime: TimeInterval
+        if isPlaying {
+            rawTime = anchorTime + max(0, date.timeIntervalSince(anchorDate))
+        } else {
+            rawTime = currentTime
+        }
+
+        guard duration.isFinite, duration > 0 else {
+            return max(0, rawTime)
+        }
+        return min(max(0, rawTime), duration)
+    }
+
+    private func resetAnchor(to time: TimeInterval, at date: Date) {
+        anchorTime = time.isFinite ? max(0, time) : 0
+        anchorDate = date
+    }
+}
+
+private struct TimedLyricsTimelineView: View {
+    let lines: [TimedLyricLine]
+    let documentType: LyricDocumentType
+    let currentTime: TimeInterval
     let currentIndex: Int?
     let displayStyle: LyricsPageView.DisplayStyle
-    let onLineTap: (LyricLine) -> Void
+    let onLineTap: (TimedLyricLine) -> Void
 
     private var lineSpacing: CGFloat {
         displayStyle == .spacious ? 28 : 14
@@ -1587,8 +1709,10 @@ private struct LrcLyricsTimelineView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: lineSpacing) {
             ForEach(lines) { line in
-                LrcLyricLineView(
+                TimedLyricLineView(
                     line: line,
+                    documentType: documentType,
+                    currentTime: currentTime,
                     isCurrent: line.index == currentIndex,
                     displayStyle: displayStyle,
                     onTap: {
@@ -1602,8 +1726,10 @@ private struct LrcLyricsTimelineView: View {
     }
 }
 
-private struct LrcLyricLineView: View {
-    let line: LyricLine
+private struct TimedLyricLineView: View {
+    let line: TimedLyricLine
+    let documentType: LyricDocumentType
+    let currentTime: TimeInterval
     let isCurrent: Bool
     let displayStyle: LyricsPageView.DisplayStyle
     let onTap: () -> Void
@@ -1638,16 +1764,65 @@ private struct LrcLyricLineView: View {
     }
 
     var body: some View {
-        Text(line.displayText)
-            .font(textFont)
-            .foregroundStyle(textColor)
-            .lineSpacing(displayStyle == .spacious ? 10 : 5)
-            .multilineTextAlignment(.leading)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.vertical, verticalPadding)
-            .contentShape(Rectangle())
-            .onTapGesture(perform: onTap)
-            .animation(.easeInOut(duration: 0.18), value: isCurrent)
+        Group {
+            if documentType == .swlrc, !line.tokens.isEmpty {
+                HStack(spacing: 0) {
+                    ForEach(line.tokens) { token in
+                        SmoothTimedLyricTokenView(
+                            token: token,
+                            currentTime: currentTime,
+                            isCurrentLine: isCurrent,
+                            baseColor: XYStyle.lyricsDimmed,
+                            highlightColor: XYStyle.accent
+                        )
+                    }
+                }
+            } else {
+                Text(line.displayText)
+                    .foregroundStyle(textColor)
+            }
+        }
+        .font(textFont)
+        .lineSpacing(displayStyle == .spacious ? 10 : 5)
+        .multilineTextAlignment(.leading)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.vertical, verticalPadding)
+        .contentShape(Rectangle())
+        .onTapGesture(perform: onTap)
+        .animation(.easeInOut(duration: 0.18), value: isCurrent)
+    }
+}
+
+private struct SmoothTimedLyricTokenView: View {
+    let token: TimedLyricToken
+    let currentTime: TimeInterval
+    let isCurrentLine: Bool
+    let baseColor: Color
+    let highlightColor: Color
+
+    private var progress: CGFloat {
+        guard isCurrentLine else { return currentTime >= token.endTime ? 1 : 0 }
+        guard token.endTime > token.startTime else {
+            return currentTime >= token.startTime ? 1 : 0
+        }
+        let raw = (currentTime - token.startTime) / (token.endTime - token.startTime)
+        return CGFloat(min(max(raw, 0), 1))
+    }
+
+    var body: some View {
+        Text(token.text)
+            .foregroundStyle(baseColor)
+            .overlay(alignment: .leading) {
+                Text(token.text)
+                    .foregroundStyle(highlightColor)
+                    .mask(alignment: .leading) {
+                        GeometryReader { geometry in
+                            Rectangle()
+                                .frame(width: max(0, geometry.size.width * progress))
+                        }
+                    }
+            }
+            .fixedSize(horizontal: true, vertical: false)
     }
 }
 
@@ -1960,6 +2135,7 @@ private struct LyricsSearchSheet: View {
                 let cached = try LyricsCacheStore.shared.save(
                     musicVaultLyrics: musicVaultResult.lyrics,
                     track: musicVaultResult.track,
+                    etag: musicVaultResult.etag,
                     for: song.id
                 )
                 onSave(cached)
