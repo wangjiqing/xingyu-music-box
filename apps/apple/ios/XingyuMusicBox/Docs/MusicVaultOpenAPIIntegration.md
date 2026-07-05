@@ -8,7 +8,7 @@
 - 集中配置入口：`MusicVaultConfig`
 - Swift 客户端入口：`MusicVaultApiClient.shared`
 - 本地缓存入口：`MusicVaultCacheStore.shared`
-- 当前后端 OpenAPI 版本：`v1`
+- 当前后端 OpenAPI 版本：`v1`，已按星语音库 v1.3.2 对接 SWLRC 逐字歌词。
 
 `musicVaultBaseUrl` 只能从 `MusicVaultConfig.defaultBaseURLString` 或显式注入的 `MusicVaultConfig` 读取，不在调用点散落硬编码。
 
@@ -43,7 +43,17 @@ http://192.168.x.x:18081
 3. `OpenApiConfig.plist` 已加入 `.gitignore`，不要提交真实 AK/SK。
 4. Xcode 工程中的 `Copy Local OpenAPI Config` build phase 会在本地配置存在时把它复制进 app bundle。
 
-Debug 构建的 `MusicVaultConfig.default` 会读取 bundle 中的 `OpenApiConfig.plist`；Release 构建不会注入该文件。未配置 endpoint 或凭证时客户端会在组请求前报错，避免发出带开发配置的请求。
+`MusicVaultConfig.default` 会优先读取用户在设置页保存的运行时配置；没有运行时配置时，Debug 构建才读取 bundle 中的 `OpenApiConfig.plist` 作为开发兜底；macOS 再兼容读取既有 Application Support 配置文件。Release 构建不会注入本地开发 plist。未配置 endpoint 或凭证时客户端会在组请求前报错，避免发出带开发配置的请求。
+
+## iOS / iPadOS 运行时配置
+
+移动端可在设置页“星语音库连接”填写服务地址、Access Key 和 Secret Key：
+
+- 服务地址保存前会去除首尾空格并规范化末尾 `/`，必须为 `http://` 或 `https://`。
+- AK 和 SK 必须成对输入才能启用本次运行的 OpenAPI 请求。
+- SK 不保存到系统钥匙串、JSON、UserDefaults 或普通 plist，只保存在本次 App 运行内存中。
+- 普通配置保存到 App Sandbox 的 Application Support，仅包含 base URL、AK 和配置完成状态。
+- 清除凭证会删除普通配置和本次运行内存中的 SK，并立即重载后续 OpenAPI 请求配置；若存在旧版遗留 Keychain 项，也会尝试删除。
 
 ## HMAC 签名规则
 
@@ -75,6 +85,7 @@ Debug 构建的 `MusicVaultConfig.default` 会读取 bundle 中的 `OpenApiConfi
 - `track(id:)`
 - `lyricsMeta(trackId:)`
 - `lyrics(trackId:ifNoneMatch:)`
+- `wordLyrics(trackId:ifNoneMatch:)`
 - `artworkMeta(trackId:)`
 - `artwork(trackId:ifNoneMatch:)`
 
@@ -88,7 +99,19 @@ Debug 构建的 `MusicVaultConfig.default` 会读取 bundle 中的 `OpenApiConfi
 - 歌词正文和 ETag
 - 封面二进制文件、MIME 和 ETag
 
-封面文件写入 app Caches 目录下的 `MusicVaultArtwork`，系统可按需清理；匹配结果和歌词索引写入 `UserDefaults`。当前不实现完整同步中心、后台自动同步、多服务端管理和复杂 UI。
+封面文件写入 app Caches 目录下的 `MusicVaultArtwork`，系统可按需清理；匹配结果和歌词索引写入 `UserDefaults`。SWLRC 与 LRC 使用不同缓存标识，不互相覆盖；旧 LRC 缓存仍可读取。当前不实现完整同步中心、后台自动同步、多服务端管理和复杂 UI。
+
+## 歌词优先级
+
+星语音乐盒 v0.4.2 的歌词策略为：
+
+1. 调用 `lyricsMeta(trackId:)`，若 `wordLyricsAvailable == true`，优先请求 `/tracks/{id}/word-lyrics`。
+2. SWLRC 返回 JSON，`format=SWLRC`，`content` 为 SWLRC v1 文本；客户端解析失败会回退 LRC。
+3. LRC 使用 `/tracks/{id}/lyrics`，返回同一 JSON 结构，`content` 为标准 LRC 文本。
+4. 两种歌词都不可用时展示无歌词状态。
+5. 当前不请求 LRCLIB 或其他公共歌词服务。
+
+SWLRC 渲染按 token 的 `startTime` / `endTime` 计算连续进度：歌词 UI 使用 60fps animation timeline 推进独立的显示时间，未播放文字保持暗色，高亮层按区间进度横向填充，因此暂停、拖动和跳转时可以落在字/词内部的精确位置，而不是整字跳变。当前行切换使用弹性滚动动画，减少行级跳动感。
 
 ## 注意事项
 

@@ -8,6 +8,7 @@ enum LyricsSource: String, Codable {
 
 enum CachedLyricType: String, Codable {
     case lrc
+    case swlrc
     case plain
     case instrumental
 }
@@ -26,9 +27,71 @@ struct CachedLyrics: Codable, Equatable {
     let matchedAlbum: String?
     let fetchedAt: Date
     let lrcLibId: Int?
+    let resourceHash: String?
+    let resourceEtag: String?
+    let updatedAt: String?
 
     var displayText: String {
         lyricType == .instrumental ? "该曲目标记为纯音乐" : lyricText
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case songId
+        case lyricText
+        case lyricType
+        case source
+        case matchedTitle
+        case matchedArtist
+        case matchedAlbum
+        case fetchedAt
+        case lrcLibId
+        case resourceHash
+        case resourceEtag
+        case updatedAt
+    }
+
+    init(
+        songId: String,
+        lyricText: String,
+        lyricType: CachedLyricType,
+        source: LyricsSource,
+        matchedTitle: String,
+        matchedArtist: String,
+        matchedAlbum: String?,
+        fetchedAt: Date,
+        lrcLibId: Int?,
+        resourceHash: String?,
+        resourceEtag: String?,
+        updatedAt: String?
+    ) {
+        self.songId = songId
+        self.lyricText = lyricText
+        self.lyricType = lyricType
+        self.source = source
+        self.matchedTitle = matchedTitle
+        self.matchedArtist = matchedArtist
+        self.matchedAlbum = matchedAlbum
+        self.fetchedAt = fetchedAt
+        self.lrcLibId = lrcLibId
+        self.resourceHash = resourceHash
+        self.resourceEtag = resourceEtag
+        self.updatedAt = updatedAt
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        songId = try container.decode(String.self, forKey: .songId)
+        lyricText = try container.decode(String.self, forKey: .lyricText)
+        lyricType = try container.decode(CachedLyricType.self, forKey: .lyricType)
+        source = try container.decode(LyricsSource.self, forKey: .source)
+        matchedTitle = try container.decode(String.self, forKey: .matchedTitle)
+        matchedArtist = try container.decode(String.self, forKey: .matchedArtist)
+        matchedAlbum = try container.decodeIfPresent(String.self, forKey: .matchedAlbum)
+        fetchedAt = try container.decode(Date.self, forKey: .fetchedAt)
+        lrcLibId = try container.decodeIfPresent(Int.self, forKey: .lrcLibId)
+        resourceHash = try container.decodeIfPresent(String.self, forKey: .resourceHash)
+        resourceEtag = try container.decodeIfPresent(String.self, forKey: .resourceEtag)
+        updatedAt = try container.decodeIfPresent(String.self, forKey: .updatedAt)
     }
 }
 
@@ -64,12 +127,19 @@ final class LyricsCacheStore {
         allLyrics()[songId]
     }
 
-    func save(musicVaultLyrics: MusicVaultLyrics, track: MusicVaultTrack?, for songId: String) throws -> CachedLyrics {
+    func save(musicVaultLyrics: MusicVaultLyrics, track: MusicVaultTrack?, etag: String?, for songId: String) throws -> CachedLyrics {
         guard let text = musicVaultLyrics.content.nilIfBlank else {
             throw LyricsCacheError.noUsableLyrics
         }
 
-        let type: CachedLyricType = musicVaultLyrics.format?.localizedCaseInsensitiveContains("LRC") == true ? .lrc : .plain
+        let type: CachedLyricType
+        if musicVaultLyrics.format?.localizedCaseInsensitiveContains("SWLRC") == true {
+            type = .swlrc
+        } else if musicVaultLyrics.format?.localizedCaseInsensitiveContains("LRC") == true {
+            type = .lrc
+        } else {
+            type = .plain
+        }
         let cached = CachedLyrics(
             songId: songId,
             lyricText: text,
@@ -79,7 +149,10 @@ final class LyricsCacheStore {
             matchedArtist: track?.artist ?? "",
             matchedAlbum: track?.album,
             fetchedAt: Date(),
-            lrcLibId: nil
+            lrcLibId: nil,
+            resourceHash: musicVaultLyrics.hash,
+            resourceEtag: etag,
+            updatedAt: musicVaultLyrics.updatedAt
         )
 
         var lyrics = allLyrics()

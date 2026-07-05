@@ -151,6 +151,8 @@ final class MacPlayerViewModel: ObservableObject {
     @Published private(set) var favoriteTrackIDs: Set<String> = []
     @Published private(set) var lyricsPreview = "暂无歌词"
     @Published private(set) var lyricLines: [LyricLine] = []
+    @Published private(set) var lyricDocument: ParsedLyricsDocument?
+    @Published private(set) var lyricDocumentType: LyricDocumentType = .none
     @Published private(set) var lyricSourceDescription = "星语音库歌词"
     @Published private(set) var isLoading = false
     @Published private(set) var isImportingLocalFolder = false
@@ -179,6 +181,7 @@ final class MacPlayerViewModel: ObservableObject {
     private var lastNowPlayingDuration: Double = 0
     private var lastNowPlayingElapsedUpdate = Date.distantPast
     private var runtimeServicesStarted = false
+    private var shuffleQueue = ShufflePlaybackQueue()
 
     init() {
         recentTrackIDs = UserDefaults.standard.stringArray(forKey: recentTrackIDsKey) ?? []
@@ -242,6 +245,17 @@ final class MacPlayerViewModel: ObservableObject {
     }
 
     var currentLyricLineIndex: Int? {
+        if let lyricDocument, !lyricDocument.lines.isEmpty {
+            let current = max(currentTime, 0)
+            if let exact = lyricDocument.lines.first(where: { line in
+                guard let endTime = line.endTime else { return false }
+                return line.startTime <= current && current < endTime
+            }) {
+                return exact.index
+            }
+            let index = lyricDocument.lines.lastIndex { $0.startTime <= current } ?? 0
+            return lyricDocument.lines[index].index
+        }
         guard !lyricLines.isEmpty else { return nil }
         let current = max(currentTime, 0)
         let index = lyricLines.lastIndex { $0.time <= current } ?? 0
@@ -421,6 +435,9 @@ final class MacPlayerViewModel: ObservableObject {
 
     private func mergeTracks() {
         tracks = localTracks
+        if playbackMode == .shuffle {
+            shuffleQueue.reconcile(sourceIDs: shuffleSourceIDs, currentID: currentTrack?.id ?? selectedTrackID)
+        }
     }
 
     func select(_ track: MacTrackItem) {
@@ -435,6 +452,17 @@ final class MacPlayerViewModel: ObservableObject {
     }
 
     func play(_ track: MacTrackItem) {
+        play(track, resetShuffleQueue: true)
+    }
+
+    private func play(_ track: MacTrackItem, resetShuffleQueue: Bool) {
+        if playbackMode == .shuffle {
+            if resetShuffleQueue {
+                shuffleQueue.enter(sourceIDs: shuffleSourceIDs, currentID: track.id)
+            } else {
+                shuffleQueue.reconcile(sourceIDs: shuffleSourceIDs, currentID: track.id)
+            }
+        }
         load(track, shouldPlay: true, startTime: 0)
     }
 
@@ -521,13 +549,14 @@ final class MacPlayerViewModel: ObservableObject {
     }
 
     func previous() {
-        guard let track = track(offset: -1) else { return }
-        play(track)
+        let track = playbackMode == .shuffle ? previousShuffleTrack() : track(offset: -1)
+        guard let track else { return }
+        play(track, resetShuffleQueue: false)
     }
 
     func next() {
         guard let track = nextTrackForUserAction() else { return }
-        play(track)
+        play(track, resetShuffleQueue: false)
     }
 
     func cyclePlaybackMode() {
@@ -537,6 +566,11 @@ final class MacPlayerViewModel: ObservableObject {
         }
         let nextIndex = MacPlaybackMode.allCases.index(after: currentIndex)
         playbackMode = nextIndex == MacPlaybackMode.allCases.endIndex ? MacPlaybackMode.allCases[0] : MacPlaybackMode.allCases[nextIndex]
+        if playbackMode == .shuffle {
+            shuffleQueue.enter(sourceIDs: shuffleSourceIDs, currentID: currentTrack?.id ?? selectedTrackID)
+        } else {
+            shuffleQueue.reset()
+        }
         persistPlaybackCheckpoint()
     }
 
@@ -689,29 +723,31 @@ final class MacPlayerViewModel: ObservableObject {
             return
         }
 
-        do {
-            let meta = try await client.lyricsMeta(trackId: track.id)
-            guard meta.available else {
-                clearLyrics(message: "星语音库暂未收录歌词")
-                return
-            }
-            let response = try await client.lyrics(trackId: track.id)
-            let text = response.value?.content.trimmingCharacters(in: .whitespacesAndNewlines)
-            guard let text, !text.isEmpty else {
-                clearLyrics(message: "歌词内容为空")
-                return
-            }
-            lyricSourceDescription = meta.format?.localizedCaseInsensitiveContains("lrc") == true ? "星语音库歌词 · LRC" : "星语音库歌词"
-            lyricsPreview = text
-            lyricLines = LRCParser.parse(text)
-        } catch {
-            clearLyrics(message: "歌词加载失败：\(error.localizedDescription)")
+        guard let result = await MusicVaultLyricsService(client: client).fetchLyrics(for: track),
+              let text = result.lyrics.content.trimmingCharacters(in: .whitespacesAndNewlines).nilIfBlank else {
+            clearLyrics(message: "歌词内容为空")
+            return
         }
+        let document: ParsedLyricsDocument?
+        if result.lyricType == .swlrc {
+            document = try? ParsedLyricsDocument.swlrc(rawText: text, sourceDescription: "星语音库歌词 · SWLRC", hash: result.lyrics.hash, etag: result.etag, updatedAt: result.lyrics.updatedAt)
+        } else {
+            document = ParsedLyricsDocument.lrc(rawText: text, sourceDescription: "星语音库歌词 · LRC", hash: result.lyrics.hash, etag: result.etag, updatedAt: result.lyrics.updatedAt)
+        }
+        lyricSourceDescription = result.lyricType == .swlrc ? "星语音库歌词 · SWLRC" : "星语音库歌词 · LRC"
+        lyricsPreview = text
+        lyricDocument = document
+        lyricDocumentType = document?.type ?? .none
+        lyricLines = document?.lines.map {
+            LyricLine(id: $0.id, time: $0.startTime, text: $0.text, index: $0.index)
+        } ?? []
     }
 
     private func clearLyrics(message: String) {
         lyricsPreview = message
         lyricLines = []
+        lyricDocument = nil
+        lyricDocumentType = .none
         lyricSourceDescription = "星语音库歌词"
     }
 
@@ -732,15 +768,24 @@ final class MacPlayerViewModel: ObservableObject {
     }
 
     private func nextTrackForUserAction() -> MacTrackItem? {
-        playbackMode == .shuffle ? randomTrack() : track(offset: 1)
+        playbackMode == .shuffle ? nextShuffleTrack() : track(offset: 1)
     }
 
-    private func randomTrack() -> MacTrackItem? {
-        guard !tracks.isEmpty else { return nil }
-        guard tracks.count > 1, let currentID = currentTrack?.id ?? selectedTrackID else {
-            return tracks.randomElement()
-        }
-        return tracks.filter { $0.id != currentID }.randomElement() ?? tracks.randomElement()
+    private var shuffleSourceIDs: [String] {
+        tracks.map(\.id)
+    }
+
+    private func trackFromShuffleID(_ id: String?) -> MacTrackItem? {
+        guard let id else { return nil }
+        return tracks.first { $0.id == id }
+    }
+
+    private func nextShuffleTrack() -> MacTrackItem? {
+        trackFromShuffleID(shuffleQueue.next(sourceIDs: shuffleSourceIDs, currentID: currentTrack?.id ?? selectedTrackID))
+    }
+
+    private func previousShuffleTrack() -> MacTrackItem? {
+        trackFromShuffleID(shuffleQueue.previous(sourceIDs: shuffleSourceIDs, currentID: currentTrack?.id ?? selectedTrackID))
     }
 
     private func handlePlaybackEnd() {
@@ -754,8 +799,8 @@ final class MacPlayerViewModel: ObservableObject {
             guard let track = track(offset: 1) else { return }
             play(track)
         case .shuffle:
-            guard let track = randomTrack() else { return }
-            play(track)
+            guard let track = nextShuffleTrack() else { return }
+            play(track, resetShuffleQueue: false)
         }
     }
 

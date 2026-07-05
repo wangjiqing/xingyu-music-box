@@ -110,6 +110,7 @@ final class PlayerViewModel: ObservableObject {
     private var bundledSongs: [Song] = []
     private var mediaLibrarySongs: [Song] = []
     private var playbackQueue: [Song] = []
+    private var shuffleQueue = ShufflePlaybackQueue()
     private var observationTask: Task<Void, Never>?
     private var pendingSeekTime: Double?
     private var seekSequence = 0
@@ -174,6 +175,9 @@ final class PlayerViewModel: ObservableObject {
         if let currentSong {
             let restoredTime = restored?.startTime ?? 0
             savedCurrentSongID = currentSong.id
+            if playbackMode == .shuffle {
+                shuffleQueue.enter(sourceIDs: shuffleSourceIDs, currentID: currentSong.id)
+            }
             loadCurrentSong(currentSong, shouldPlay: false, startTime: restoredTime, shouldSaveState: false)
         }
     }
@@ -183,10 +187,21 @@ final class PlayerViewModel: ObservableObject {
     }
 
     func play(song: Song, queue: [Song]) {
+        play(song: song, queue: queue, resetShuffleQueue: true)
+    }
+
+    private func play(song: Song, queue: [Song], resetShuffleQueue: Bool) {
         markUserPlaybackChangeDuringInterruption()
         currentSong = song
         savedCurrentSongID = song.id
         playbackQueue = queue.filter(isPlayable)
+        if playbackMode == .shuffle {
+            if resetShuffleQueue {
+                shuffleQueue.enter(sourceIDs: shuffleSourceIDs, currentID: song.id)
+            } else {
+                shuffleQueue.reconcile(sourceIDs: shuffleSourceIDs, currentID: song.id)
+            }
+        }
         loadCurrentSong(song, shouldPlay: true)
     }
 
@@ -211,13 +226,13 @@ final class PlayerViewModel: ObservableObject {
     func previous() {
         markUserPlaybackChangeDuringInterruption()
         guard let song = songForManualPrevious() else { return }
-        play(song: song, queue: activePlaybackQueue)
+        play(song: song, queue: activePlaybackQueue, resetShuffleQueue: false)
     }
 
     func next() {
         markUserPlaybackChangeDuringInterruption()
         guard let song = songForManualNext() else { return }
-        play(song: song, queue: activePlaybackQueue)
+        play(song: song, queue: activePlaybackQueue, resetShuffleQueue: false)
     }
 
     func seek(to seconds: Double) {
@@ -361,6 +376,11 @@ final class PlayerViewModel: ObservableObject {
 
         let nextIndex = PlaybackMode.allCases.index(after: currentIndex)
         playbackMode = nextIndex == PlaybackMode.allCases.endIndex ? PlaybackMode.allCases[0] : PlaybackMode.allCases[nextIndex]
+        if playbackMode == .shuffle {
+            shuffleQueue.enter(sourceIDs: shuffleSourceIDs, currentID: currentSong?.id)
+        } else {
+            shuffleQueue.reset()
+        }
         savedPlaybackMode = playbackMode.rawValue
         persistPlaybackState()
         message = playbackMode.title
@@ -401,6 +421,7 @@ final class PlayerViewModel: ObservableObject {
         favorites = []
 
         playbackMode = .repeatAll
+        shuffleQueue.reset()
         savedPlaybackMode = playbackMode.rawValue
         message = "已清空本地偏好"
     }
@@ -600,25 +621,6 @@ final class PlayerViewModel: ObservableObject {
         return nil
     }
 
-    private func randomPlayableSongExcludingCurrent() -> Song? {
-        let queue = activePlaybackQueue
-        guard !queue.isEmpty else { return nil }
-        guard let currentSong else {
-            return queue.first(where: isPlayable) ?? queue.first
-        }
-
-        let playableCandidates = queue.filter { $0.id != currentSong.id && isPlayable($0) }
-        if let candidate = playableCandidates.randomElement() {
-            return candidate
-        }
-
-        if isPlayable(currentSong) {
-            return currentSong
-        }
-
-        return queue.first { $0.id != currentSong.id } ?? currentSong
-    }
-
     private func songForManualNext() -> Song? {
         switch playbackMode {
         case .sequential:
@@ -626,7 +628,7 @@ final class PlayerViewModel: ObservableObject {
         case .repeatAll, .repeatOne:
             return playableSong(offset: 1, wrapping: true) ?? song(offset: 1)
         case .shuffle:
-            return randomPlayableSongExcludingCurrent()
+            return songFromShuffleID(shuffleQueue.next(sourceIDs: shuffleSourceIDs, currentID: currentSong?.id))
         }
     }
 
@@ -637,7 +639,7 @@ final class PlayerViewModel: ObservableObject {
         case .repeatAll, .repeatOne:
             return playableSong(offset: -1, wrapping: true) ?? song(offset: -1)
         case .shuffle:
-            return randomPlayableSongExcludingCurrent()
+            return songFromShuffleID(shuffleQueue.previous(sourceIDs: shuffleSourceIDs, currentID: currentSong?.id))
         }
     }
 
@@ -653,8 +655,8 @@ final class PlayerViewModel: ObservableObject {
             guard let currentSong else { return }
             loadCurrentSong(currentSong, shouldPlay: true, startTime: 0)
         case .shuffle:
-            guard let song = randomPlayableSongExcludingCurrent() else { return }
-            play(song: song, queue: activePlaybackQueue)
+            guard let song = songFromShuffleID(shuffleQueue.next(sourceIDs: shuffleSourceIDs, currentID: currentSong?.id)) else { return }
+            play(song: song, queue: activePlaybackQueue, resetShuffleQueue: false)
         }
     }
 
@@ -724,6 +726,7 @@ final class PlayerViewModel: ObservableObject {
                     _ = try LyricsCacheStore.shared.save(
                         musicVaultLyrics: musicVaultResult.lyrics,
                         track: musicVaultResult.track,
+                        etag: musicVaultResult.etag,
                         for: song.id
                     )
                     return
@@ -793,6 +796,15 @@ final class PlayerViewModel: ObservableObject {
 
     private var activePlaybackQueue: [Song] {
         playbackQueue.isEmpty ? songs : playbackQueue
+    }
+
+    private var shuffleSourceIDs: [String] {
+        activePlaybackQueue.filter(isPlayable).map(\.id)
+    }
+
+    private func songFromShuffleID(_ id: String?) -> Song? {
+        guard let id else { return nil }
+        return activePlaybackQueue.first { $0.id == id } ?? songs.first { $0.id == id }
     }
 
     private func persistPlaybackState(currentTimeOverride: Double?) {
@@ -903,6 +915,9 @@ final class PlayerViewModel: ObservableObject {
             playbackQueue = playbackQueue.compactMap { queuedSong in
                 songs.first { $0.id == queuedSong.id }
             }
+        }
+        if playbackMode == .shuffle {
+            shuffleQueue.reconcile(sourceIDs: shuffleSourceIDs, currentID: currentSong?.id)
         }
     }
 

@@ -32,22 +32,18 @@ enum MusicVaultApiError: LocalizedError {
                 ?? "星语音库请求失败（\(statusCode)）。"
         case .decodingFailed:
             return "星语音库响应解析失败。"
-        case .networkFailed:
-            return "星语音库网络请求失败。"
+        case .networkFailed(let error):
+            return "星语音库网络请求失败，请检查服务地址是否可达：\(error.localizedDescription)"
         }
     }
 }
 
 final class MusicVaultApiClient {
-    #if os(macOS)
     static private(set) var shared = MusicVaultApiClient()
 
     static func reloadSharedConfiguration() {
         shared = MusicVaultApiClient()
     }
-    #else
-    static let shared = MusicVaultApiClient()
-    #endif
 
     private let config: MusicVaultConfig
     private let session: URLSession
@@ -92,6 +88,10 @@ final class MusicVaultApiClient {
 
     func lyrics(trackId: Int64, ifNoneMatch etag: String? = nil) async throws -> MusicVaultConditionalResponse<MusicVaultLyrics> {
         try await getConditionalJSON("/tracks/\(trackId)/lyrics", ifNoneMatch: etag)
+    }
+
+    func wordLyrics(trackId: Int64, ifNoneMatch etag: String? = nil) async throws -> MusicVaultConditionalResponse<MusicVaultLyrics> {
+        try await getConditionalJSON("/tracks/\(trackId)/word-lyrics", ifNoneMatch: etag)
     }
 
     func lyricsMeta(trackId: Int64) async throws -> MusicVaultLyricsMeta {

@@ -2174,10 +2174,6 @@ private struct MacNowPlayingLyricsView: View {
         return rawLines.isEmpty ? ["本歌曲暂无歌词"] : rawLines
     }
 
-    private var activeTimedLineIndex: Int? {
-        viewModel.currentLyricLineIndex
-    }
-
     var body: some View {
         VStack(alignment: .leading, spacing: 24) {
             VStack(alignment: .leading, spacing: 10) {
@@ -2195,71 +2191,77 @@ private struct MacNowPlayingLyricsView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
 
             ScrollViewReader { reader in
-                ScrollView {
-                    VStack(alignment: .leading, spacing: 20) {
-                        if viewModel.lyricLines.isEmpty {
-                            ForEach(Array(plainLyricLines.enumerated()), id: \.offset) { index, line in
-                                Text(line)
-                                    .font(.system(size: 20, weight: .semibold))
-                                    .foregroundStyle(index == 0 && plainLyricLines.count == 1 ? themeManager.currentTheme.nowPlayingSecondaryText : themeManager.currentTheme.nowPlayingDimText)
-                                    .lineLimit(2)
-                                    .minimumScaleFactor(0.82)
-                                    .id(index)
-                            }
-                        } else {
-                            ForEach(viewModel.lyricLines) { line in
-                                let isActive = line.index == activeTimedLineIndex
-                                MacTimedLyricRow(
-                                    line: line,
-                                    isActive: isActive,
-                                    onSeek: {
-                                        browseResetTask?.cancel()
-                                        isUserBrowsingLyrics = false
-                                        viewModel.seek(to: line.time)
-                                        withAnimation(.easeInOut(duration: 0.25)) {
-                                            reader.scrollTo(line.index, anchor: .center)
-                                        }
-                                    }
-                                )
-                                .id(line.index)
-                                .onHover { hovering in
-                                    updateLyricBrowsingState(isBrowsing: hovering)
+                MacSmoothLyricTimeReader(currentTime: viewModel.currentTime, duration: viewModel.duration, isPlaying: viewModel.isPlaying) { smoothTime in
+                    let activeTimedLineIndex = currentTimedLineIndex(in: viewModel.lyricDocument?.lines, currentTime: smoothTime)
+
+                    ScrollView {
+                        VStack(alignment: .leading, spacing: 20) {
+                            if viewModel.lyricDocument?.lines.isEmpty != false {
+                                ForEach(Array(plainLyricLines.enumerated()), id: \.offset) { index, line in
+                                    Text(line)
+                                        .font(.system(size: 20, weight: .semibold))
+                                        .foregroundStyle(index == 0 && plainLyricLines.count == 1 ? themeManager.currentTheme.nowPlayingSecondaryText : themeManager.currentTheme.nowPlayingDimText)
+                                        .lineLimit(2)
+                                        .minimumScaleFactor(0.82)
+                                        .id(index)
                                 }
-                                .animation(.easeOut(duration: 0.18), value: activeTimedLineIndex)
+                            } else if let lyricDocument = viewModel.lyricDocument {
+                                ForEach(lyricDocument.lines) { line in
+                                    let isActive = line.index == activeTimedLineIndex
+                                    MacTimedLyricRow(
+                                        line: line,
+                                        documentType: lyricDocument.type,
+                                        currentTime: smoothTime,
+                                        isActive: isActive,
+                                        onSeek: {
+                                            browseResetTask?.cancel()
+                                            isUserBrowsingLyrics = false
+                                            viewModel.seek(to: line.startTime)
+                                            withAnimation(.easeInOut(duration: 0.25)) {
+                                                reader.scrollTo(line.index, anchor: .center)
+                                            }
+                                        }
+                                    )
+                                    .id(line.index)
+                                    .onHover { hovering in
+                                        updateLyricBrowsingState(isBrowsing: hovering)
+                                    }
+                                    .animation(.easeOut(duration: 0.18), value: activeTimedLineIndex)
+                                }
                             }
                         }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.vertical, 116)
                     }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.vertical, 116)
-                }
-                .scrollIndicators(.hidden)
-                .onHover { hovering in
-                    updateLyricBrowsingState(isBrowsing: hovering)
-                }
-                .mask(alignment: .center) {
-                    LinearGradient(
-                        stops: [
-                            .init(color: .clear, location: 0.00),
-                            .init(color: .black.opacity(0.18), location: 0.08),
-                            .init(color: .black, location: 0.22),
-                            .init(color: .black, location: 0.78),
-                            .init(color: .black.opacity(0.18), location: 0.92),
-                            .init(color: .clear, location: 1.00)
-                        ],
-                        startPoint: .top,
-                        endPoint: .bottom
-                    )
-                }
-                .onAppear {
-                    if let activeTimedLineIndex {
-                        reader.scrollTo(activeTimedLineIndex, anchor: .center)
+                    .scrollIndicators(.hidden)
+                    .onHover { hovering in
+                        updateLyricBrowsingState(isBrowsing: hovering)
                     }
-                }
-                .onChange(of: activeTimedLineIndex) { _, newValue in
-                    guard let newValue else { return }
-                    guard !isUserBrowsingLyrics else { return }
-                    withAnimation(.easeInOut(duration: 0.35)) {
-                        reader.scrollTo(newValue, anchor: .center)
+                    .mask(alignment: .center) {
+                        LinearGradient(
+                            stops: [
+                                .init(color: .clear, location: 0.00),
+                                .init(color: .black.opacity(0.18), location: 0.08),
+                                .init(color: .black, location: 0.22),
+                                .init(color: .black, location: 0.78),
+                                .init(color: .black.opacity(0.18), location: 0.92),
+                                .init(color: .clear, location: 1.00)
+                            ],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                    }
+                    .onAppear {
+                        if let activeTimedLineIndex {
+                            reader.scrollTo(activeTimedLineIndex, anchor: .center)
+                        }
+                    }
+                    .onChange(of: activeTimedLineIndex) { _, newValue in
+                        guard let newValue else { return }
+                        guard !isUserBrowsingLyrics else { return }
+                        withAnimation(.interactiveSpring(response: 0.52, dampingFraction: 0.86, blendDuration: 0.12)) {
+                            reader.scrollTo(newValue, anchor: .center)
+                        }
                     }
                 }
             }
@@ -2282,28 +2284,141 @@ private struct MacNowPlayingLyricsView: View {
             }
         }
     }
+
+    private func currentTimedLineIndex(in lines: [TimedLyricLine]?, currentTime: TimeInterval) -> Int? {
+        guard let lines, !lines.isEmpty else { return nil }
+        if let exact = lines.first(where: { line in
+            guard let endTime = line.endTime else { return false }
+            return line.startTime <= currentTime && currentTime < endTime
+        }) {
+            return exact.index
+        }
+        let index = lines.lastIndex { $0.startTime <= currentTime } ?? 0
+        return currentTime < lines[0].startTime ? nil : lines[index].index
+    }
 }
 
 private struct MacTimedLyricRow: View {
-    @EnvironmentObject private var viewModel: MacPlayerViewModel
     @EnvironmentObject private var themeManager: MacThemeManager
 
-    let line: LyricLine
+    let line: TimedLyricLine
+    let documentType: LyricDocumentType
+    let currentTime: TimeInterval
     let isActive: Bool
     let onSeek: () -> Void
 
     var body: some View {
         Button(action: onSeek) {
-            Text(line.displayText)
-                .font(.system(size: isActive ? 24 : 20, weight: isActive ? .bold : .semibold))
-                .foregroundStyle(isActive ? themeManager.currentTheme.playbackAccent : themeManager.currentTheme.nowPlayingDimText)
-                .lineLimit(2)
-                .minimumScaleFactor(0.82)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .contentShape(Rectangle())
+            Group {
+                if documentType == .swlrc, !line.tokens.isEmpty {
+                    HStack(spacing: 0) {
+                        ForEach(line.tokens) { token in
+                            MacSmoothTimedLyricTokenView(
+                                token: token,
+                                currentTime: currentTime,
+                                isCurrentLine: isActive,
+                                baseColor: themeManager.currentTheme.nowPlayingDimText,
+                                highlightColor: themeManager.currentTheme.playbackAccent
+                            )
+                        }
+                    }
+                } else {
+                    Text(line.displayText)
+                        .foregroundStyle(isActive ? themeManager.currentTheme.playbackAccent : themeManager.currentTheme.nowPlayingDimText)
+                }
+            }
+            .font(.system(size: isActive ? 24 : 20, weight: isActive ? .bold : .semibold))
+            .lineLimit(2)
+            .minimumScaleFactor(0.82)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .background(MacCursorRegion(cursor: .pointingHand))
+    }
+}
+
+private struct MacSmoothLyricTimeReader<Content: View>: View {
+    let currentTime: TimeInterval
+    let duration: TimeInterval
+    let isPlaying: Bool
+    @ViewBuilder let content: (TimeInterval) -> Content
+
+    @State private var anchorTime: TimeInterval = 0
+    @State private var anchorDate = Date()
+
+    var body: some View {
+        TimelineView(.animation(minimumInterval: 1.0 / 60.0, paused: false)) { context in
+            content(displayTime(at: context.date))
+        }
+        .onAppear {
+            resetAnchor(to: currentTime, at: Date())
+        }
+        .onChange(of: currentTime) { _, newValue in
+            let now = Date()
+            let displayed = displayTime(at: now)
+            if !isPlaying || abs(displayed - newValue) > 0.28 {
+                resetAnchor(to: newValue, at: now)
+            }
+        }
+        .onChange(of: isPlaying) { _, _ in
+            resetAnchor(to: currentTime, at: Date())
+        }
+        .onChange(of: duration) { _, _ in
+            resetAnchor(to: currentTime, at: Date())
+        }
+    }
+
+    private func displayTime(at date: Date) -> TimeInterval {
+        let rawTime: TimeInterval
+        if isPlaying {
+            rawTime = anchorTime + max(0, date.timeIntervalSince(anchorDate))
+        } else {
+            rawTime = currentTime
+        }
+
+        guard duration.isFinite, duration > 0 else {
+            return max(0, rawTime)
+        }
+        return min(max(0, rawTime), duration)
+    }
+
+    private func resetAnchor(to time: TimeInterval, at date: Date) {
+        anchorTime = time.isFinite ? max(0, time) : 0
+        anchorDate = date
+    }
+}
+
+private struct MacSmoothTimedLyricTokenView: View {
+    let token: TimedLyricToken
+    let currentTime: TimeInterval
+    let isCurrentLine: Bool
+    let baseColor: Color
+    let highlightColor: Color
+
+    private var progress: CGFloat {
+        guard isCurrentLine else { return currentTime >= token.endTime ? 1 : 0 }
+        guard token.endTime > token.startTime else {
+            return currentTime >= token.startTime ? 1 : 0
+        }
+        let raw = (currentTime - token.startTime) / (token.endTime - token.startTime)
+        return CGFloat(min(max(raw, 0), 1))
+    }
+
+    var body: some View {
+        Text(token.text)
+            .foregroundStyle(baseColor)
+            .overlay(alignment: .leading) {
+                Text(token.text)
+                    .foregroundStyle(highlightColor)
+                    .mask(alignment: .leading) {
+                        GeometryReader { geometry in
+                            Rectangle()
+                                .frame(width: max(0, geometry.size.width * progress))
+                        }
+                    }
+            }
+            .fixedSize(horizontal: true, vertical: false)
     }
 }
 
